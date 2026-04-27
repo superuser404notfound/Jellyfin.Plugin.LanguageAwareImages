@@ -9,7 +9,7 @@ no-language posters the built-in provider often picks instead.
 In Jellyfin: *Admin → Plugins → Repositories → +* and add
 
 ```
-https://raw.githubusercontent.com/superuser404notfound/Jellyfin.Plugin.LanguageAwareImages/main/manifest.json
+https://raw.githubusercontent.com/superuser404notfound/jellyfin-plugin-language-aware-images/main/manifest.json
 ```
 
 Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the server.
