@@ -201,7 +201,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
                 Url = TmdbImageBaseUrl + i.FilePath,
                 Width = i.Width,
                 Height = i.Height,
-                Language = i.Iso_639_1,
+                Language = DisguiseLanguage(i.Iso_639_1, preferredLanguage, fallback),
                 CommunityRating = i.VoteAverage,
                 VoteCount = i.VoteCount,
                 RatingType = RatingType.Score
@@ -217,6 +217,37 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         }
 
         return ranked;
+    }
+
+    // Jellyfin's ProviderManager filters the returned RemoteImageInfo list down
+    // to {empty | preferred | "en"} unless the UI's "All languages" toggle is
+    // set, then sorts what's left with OrderByLanguageDescending(preferred) —
+    // which puts preferred first and English second. Both behaviors hide the
+    // original-language bucket we worked to fetch (e.g. Japanese posters for
+    // an anime in a German library).
+    //
+    // Workaround: for any image whose iso is neither preferred nor fallback
+    // nor empty (i.e. it's an original-language entry), tag it with the
+    // preferred code. The image survives the filter and lands in Jellyfin's
+    // "preferred" sort bucket alongside real preferred matches; LINQ's stable
+    // sort preserves our internal preferred → original → fallback order.
+    //
+    // Tradeoff: the UI labels a Japanese poster as "DE". Functionally right,
+    // cosmetically white-lied.
+    private static string? DisguiseLanguage(string? iso, string preferred, string fallback)
+    {
+        if (string.IsNullOrEmpty(iso))
+        {
+            return null;
+        }
+
+        if (string.Equals(iso, preferred, StringComparison.OrdinalIgnoreCase)
+            || string.Equals(iso, fallback, StringComparison.OrdinalIgnoreCase))
+        {
+            return iso;
+        }
+
+        return string.IsNullOrEmpty(preferred) ? iso : preferred;
     }
 
     public Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)
