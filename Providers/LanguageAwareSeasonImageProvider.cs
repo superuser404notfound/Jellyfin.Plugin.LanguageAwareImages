@@ -3,13 +3,17 @@ using MediaBrowser.Controller.Entities.TV;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
+using Microsoft.Extensions.Logging;
+using TMDbLib.Objects.TvShows;
 
 namespace Jellyfin.Plugin.LanguageAwareImages.Providers;
 
 public class LanguageAwareSeasonImageProvider : LanguageAwareImageProviderBase, IRemoteImageProvider
 {
-    public LanguageAwareSeasonImageProvider(IHttpClientFactory httpClientFactory)
-        : base(httpClientFactory)
+    public LanguageAwareSeasonImageProvider(
+        IHttpClientFactory httpClientFactory,
+        ILogger<LanguageAwareSeasonImageProvider> logger)
+        : base(httpClientFactory, logger)
     {
     }
 
@@ -39,16 +43,26 @@ public class LanguageAwareSeasonImageProvider : LanguageAwareImageProviderBase, 
             ? Config.FallbackLanguage
             : preferredLanguage;
 
-        var client = CreateClient();
+        var client = GetClient();
+
+        // Seasons inherit original_language from the parent show.
+        var originalLanguage = string.Empty;
+        if (Config.IncludeOriginalLanguage)
+        {
+            var show = await client.GetTvShowAsync(seriesTmdbId, TvShowMethods.Undefined, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+            originalLanguage = NormaliseLanguage(show?.OriginalLanguage);
+        }
+
         var images = await client.GetTvSeasonImagesAsync(
             seriesTmdbId,
             season.IndexNumber.Value,
             language: apiLanguage,
-            includeImageLanguage: BuildIncludeLanguageParam(preferredLanguage),
+            includeImageLanguage: BuildIncludeLanguageParam(preferredLanguage, originalLanguage),
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         return images is null
             ? Array.Empty<RemoteImageInfo>()
-            : RankAndMap(images.Posters, ImageType.Primary, preferredLanguage);
+            : RankAndMap(images.Posters, ImageType.Primary, preferredLanguage, originalLanguage);
     }
 }

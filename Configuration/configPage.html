@@ -13,43 +13,92 @@
             <form id="LanguageAwareImagesConfigForm">
                 <div class="verticalSection">
                     <h2 class="sectionTitle">Language-Aware Images</h2>
-                    <p>Replaces the built-in TMDB image provider. By default the plugin uses each
-                       library's configured metadata language, then sorts images by
-                       <code>vote_count</code> within that language bucket — matching TMDB's own
-                       UI sort order.</p>
+                    <p>Replaces the built-in TMDB image provider. Uses each library's metadata
+                       language by default and sorts images by <code>vote_count</code> within
+                       each language bucket — the same way TMDB's own UI ranks them.</p>
                 </div>
 
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="PreferredLanguageOverride">Preferred language override (ISO 639-1)</label>
-                    <input is="emby-input" type="text" id="PreferredLanguageOverride" maxlength="2" />
-                    <div class="fieldDescription">
-                        Leave empty (recommended) to use each library's metadata language.
-                        Set a 2-letter code like <code>de</code> or <code>fr</code> to force
-                        that language for every library, ignoring per-library settings.
+                <div class="verticalSection">
+                    <h3 class="checkboxListLabel">Languages</h3>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="PreferredLanguageOverride">Preferred language override (ISO 639-1)</label>
+                        <input is="emby-input" type="text" id="PreferredLanguageOverride" maxlength="2" />
+                        <div class="fieldDescription">
+                            Leave empty (recommended) to use each library's metadata language.
+                            Set a 2-letter code like <code>de</code> or <code>fr</code> to force
+                            that language for every library, ignoring per-library settings.
+                        </div>
+                    </div>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="FallbackLanguage">Fallback language (ISO 639-1)</label>
+                        <input is="emby-input" type="text" id="FallbackLanguage" required maxlength="2" />
+                        <div class="fieldDescription">Used when no image in the preferred language exists.</div>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="IncludeOriginalLanguage" />
+                            <span>Also include the title's original language</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Adds a third bucket between preferred and fallback. Useful for
+                            anime / foreign-cinema fans: a German user can see the Japanese
+                            poster for <i>Princess Mononoke</i> instead of the US export.
+                            Costs one extra API call per item.
+                        </div>
                     </div>
                 </div>
 
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="FallbackLanguage">Fallback language (ISO 639-1)</label>
-                    <input is="emby-input" type="text" id="FallbackLanguage" required maxlength="2" />
-                    <div class="fieldDescription">Used when the preferred language has no images. Usually <code>en</code>.</div>
-                </div>
+                <div class="verticalSection">
+                    <h3 class="checkboxListLabel">Allow textless (no language tag) images</h3>
+                    <p style="margin-top: 0.5em">Per image type, since logos and backdrops usually
+                       work fine textless but posters generally don't.</p>
 
-                <div class="checkboxContainer checkboxContainer-withDescription">
-                    <label>
-                        <input is="emby-checkbox" type="checkbox" id="IncludeNoLanguage" />
-                        <span>Include textless (no-language) images as last resort</span>
-                    </label>
-                    <div class="fieldDescription checkboxFieldDescription">
-                        Useful for logos. For posters, leave off so you don't get unlocalized art.
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="IncludeNoLanguageForPosters" />
+                            <span>Posters</span>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="IncludeNoLanguageForBackdrops" />
+                            <span>Backdrops</span>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="IncludeNoLanguageForLogos" />
+                            <span>Logos</span>
+                        </label>
                     </div>
                 </div>
 
-                <div class="inputContainer">
-                    <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDB API key (optional)</label>
-                    <input is="emby-input" type="text" id="TmdbApiKey" />
-                    <div class="fieldDescription">
-                        Leave empty to use Jellyfin's bundled key. Bring your own to avoid sharing rate limits.
+                <div class="verticalSection">
+                    <h3 class="checkboxListLabel">Quality filters</h3>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="MinimumVoteCount">Minimum vote count</label>
+                        <input is="emby-input" type="number" id="MinimumVoteCount" min="0" step="1" />
+                        <div class="fieldDescription">
+                            Drops images with fewer than this many TMDB votes. Default
+                            <code>1</code> filters out unvalidated junk uploads. Set
+                            <code>0</code> to disable.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
+                    <h3 class="checkboxListLabel">TMDB API</h3>
+
+                    <div class="inputContainer">
+                        <label class="inputLabel inputLabelUnfocused" for="TmdbApiKey">TMDB API key (optional)</label>
+                        <input is="emby-input" type="text" id="TmdbApiKey" />
+                        <div class="fieldDescription">
+                            Leave empty to use Jellyfin's bundled key. Bring your own to avoid sharing rate limits.
+                        </div>
                     </div>
                 </div>
 
@@ -72,7 +121,11 @@
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         document.querySelector('#PreferredLanguageOverride').value = config.PreferredLanguageOverride || '';
                         document.querySelector('#FallbackLanguage').value = config.FallbackLanguage || 'en';
-                        document.querySelector('#IncludeNoLanguage').checked = !!config.IncludeNoLanguage;
+                        document.querySelector('#IncludeOriginalLanguage').checked = !!config.IncludeOriginalLanguage;
+                        document.querySelector('#IncludeNoLanguageForPosters').checked = !!config.IncludeNoLanguageForPosters;
+                        document.querySelector('#IncludeNoLanguageForBackdrops').checked = config.IncludeNoLanguageForBackdrops !== false;
+                        document.querySelector('#IncludeNoLanguageForLogos').checked = config.IncludeNoLanguageForLogos !== false;
+                        document.querySelector('#MinimumVoteCount').value = (config.MinimumVoteCount != null ? config.MinimumVoteCount : 1);
                         document.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
                         Dashboard.hideLoadingMsg();
                     });
@@ -85,7 +138,11 @@
                     ApiClient.getPluginConfiguration(pluginId).then(function (config) {
                         config.PreferredLanguageOverride = document.querySelector('#PreferredLanguageOverride').value.trim().toLowerCase();
                         config.FallbackLanguage = document.querySelector('#FallbackLanguage').value.trim().toLowerCase();
-                        config.IncludeNoLanguage = document.querySelector('#IncludeNoLanguage').checked;
+                        config.IncludeOriginalLanguage = document.querySelector('#IncludeOriginalLanguage').checked;
+                        config.IncludeNoLanguageForPosters = document.querySelector('#IncludeNoLanguageForPosters').checked;
+                        config.IncludeNoLanguageForBackdrops = document.querySelector('#IncludeNoLanguageForBackdrops').checked;
+                        config.IncludeNoLanguageForLogos = document.querySelector('#IncludeNoLanguageForLogos').checked;
+                        config.MinimumVoteCount = parseInt(document.querySelector('#MinimumVoteCount').value, 10) || 0;
                         config.TmdbApiKey = document.querySelector('#TmdbApiKey').value.trim();
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);

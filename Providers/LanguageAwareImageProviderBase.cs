@@ -4,6 +4,7 @@ using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Dto;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
+using Microsoft.Extensions.Logging;
 using TMDbLib.Client;
 using TMDbLib.Objects.General;
 
@@ -19,10 +20,19 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     protected const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/original";
 
     protected readonly IHttpClientFactory HttpClientFactory;
+    protected readonly ILogger Logger;
 
-    protected LanguageAwareImageProviderBase(IHttpClientFactory httpClientFactory)
+    // One TMDbClient is cheap, but keeping it static enables the underlying
+    // HttpClient to pool connections across calls. Rebuild only if the user
+    // changes the API key in plugin config.
+    private static readonly object ClientLock = new();
+    private static TMDbClient? _sharedClient;
+    private static string? _sharedKey;
+
+    protected LanguageAwareImageProviderBase(IHttpClientFactory httpClientFactory, ILogger logger)
     {
         HttpClientFactory = httpClientFactory;
+        Logger = logger;
     }
 
     public string Name => "Language-Aware TMDB Images";
@@ -34,12 +44,22 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     protected static Configuration.PluginConfiguration Config =>
         Plugin.Instance!.Configuration;
 
-    protected TMDbClient CreateClient()
+    protected static TMDbClient GetClient()
     {
-        var key = string.IsNullOrWhiteSpace(Config.TmdbApiKey)
+        var desiredKey = string.IsNullOrWhiteSpace(Config.TmdbApiKey)
             ? DefaultJellyfinTmdbKey
             : Config.TmdbApiKey;
-        return new TMDbClient(key);
+
+        lock (ClientLock)
+        {
+            if (_sharedClient is null || _sharedKey != desiredKey)
+            {
+                _sharedClient = new TMDbClient(desiredKey);
+                _sharedKey = desiredKey;
+            }
+
+            return _sharedClient;
+        }
     }
 
     // Resolves the effective preferred language for a given item:
@@ -54,6 +74,11 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
             ? Config.PreferredLanguageOverride
             : item.GetPreferredMetadataLanguage();
 
+        return NormaliseLanguage(lang);
+    }
+
+    protected static string NormaliseLanguage(string? lang)
+    {
         if (string.IsNullOrWhiteSpace(lang))
         {
             return string.Empty;
@@ -64,10 +89,23 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         return (dash > 0 ? lang[..dash] : lang).ToLowerInvariant();
     }
 
+    protected static bool IsTextlessAllowedFor(ImageType type) => type switch
+    {
+        ImageType.Primary => Config.IncludeNoLanguageForPosters,
+        ImageType.Backdrop => Config.IncludeNoLanguageForBackdrops,
+        ImageType.Logo => Config.IncludeNoLanguageForLogos,
+        _ => false
+    };
+
+    protected static bool AnyTextlessAllowed() =>
+        Config.IncludeNoLanguageForPosters
+        || Config.IncludeNoLanguageForBackdrops
+        || Config.IncludeNoLanguageForLogos;
+
     // TMDB's `include_image_language` accepts a comma list. The literal token
     // "null" pulls textless images. Order in the list does not affect ranking;
     // we apply our own bucket sort below.
-    protected string BuildIncludeLanguageParam(string preferredLanguage)
+    protected static string BuildIncludeLanguageParam(string preferredLanguage, string originalLanguage)
     {
         var parts = new List<string>();
         if (!string.IsNullOrWhiteSpace(preferredLanguage))
@@ -75,12 +113,17 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
             parts.Add(preferredLanguage);
         }
 
+        if (Config.IncludeOriginalLanguage && !string.IsNullOrWhiteSpace(originalLanguage))
+        {
+            parts.Add(originalLanguage);
+        }
+
         if (!string.IsNullOrWhiteSpace(Config.FallbackLanguage))
         {
             parts.Add(Config.FallbackLanguage);
         }
 
-        if (Config.IncludeNoLanguage)
+        if (AnyTextlessAllowed())
         {
             parts.Add("null");
         }
@@ -88,12 +131,21 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         return string.Join(",", parts.Distinct());
     }
 
-    // Heart of the plugin: filter by language bucket, then ORDER BY vote_count DESC,
-    // vote_average DESC — the same ordering TMDB's own /images UI uses.
+    // Heart of the plugin: filter by language bucket + min vote count, then
+    // ORDER BY vote_count DESC, vote_average DESC — the same ordering TMDB's
+    // own /images UI uses.
+    //
+    // Bucket ranks:
+    //   0 - preferred language
+    //   1 - original language (only if IncludeOriginalLanguage and != preferred/fallback)
+    //   2 - fallback language
+    //   3 - textless (null), only if allowed for this image type
+    //  99 - excluded
     protected IEnumerable<RemoteImageInfo> RankAndMap(
         IEnumerable<ImageData>? images,
         ImageType type,
-        string preferredLanguage)
+        string preferredLanguage,
+        string originalLanguage)
     {
         if (images is null)
         {
@@ -101,7 +153,12 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         }
 
         var fallback = Config.FallbackLanguage;
-        var includeNull = Config.IncludeNoLanguage;
+        var includeTextless = IsTextlessAllowedFor(type);
+        var includeOriginal = Config.IncludeOriginalLanguage
+            && !string.IsNullOrEmpty(originalLanguage)
+            && !string.Equals(originalLanguage, preferredLanguage, StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(originalLanguage, fallback, StringComparison.OrdinalIgnoreCase);
+        var minVotes = Math.Max(0, Config.MinimumVoteCount);
 
         int Rank(string? iso)
         {
@@ -111,21 +168,28 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
                 return 0;
             }
 
-            if (!string.IsNullOrEmpty(fallback)
-                && string.Equals(iso, fallback, StringComparison.OrdinalIgnoreCase))
+            if (includeOriginal
+                && string.Equals(iso, originalLanguage, StringComparison.OrdinalIgnoreCase))
             {
                 return 1;
             }
 
-            if (string.IsNullOrEmpty(iso) && includeNull)
+            if (!string.IsNullOrEmpty(fallback)
+                && string.Equals(iso, fallback, StringComparison.OrdinalIgnoreCase))
             {
                 return 2;
+            }
+
+            if (string.IsNullOrEmpty(iso) && includeTextless)
+            {
+                return 3;
             }
 
             return 99;
         }
 
-        return images
+        var ranked = images
+            .Where(i => i.VoteCount >= minVotes)
             .Where(i => Rank(i.Iso_639_1) < 99)
             .OrderBy(i => Rank(i.Iso_639_1))
             .ThenByDescending(i => i.VoteCount)
@@ -143,6 +207,16 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
                 RatingType = RatingType.Score
             })
             .ToList();
+
+        if (Logger.IsEnabled(LogLevel.Debug) && ranked.Count > 0)
+        {
+            var top = ranked[0];
+            Logger.LogDebug(
+                "LanguageAwareImages: {Type} -> {Count} candidates, top lang={Lang} votes={Votes} url={Url}",
+                type, ranked.Count, top.Language ?? "null", top.VoteCount, top.Url);
+        }
+
+        return ranked;
     }
 
     public Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)

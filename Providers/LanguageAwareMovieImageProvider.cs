@@ -3,13 +3,17 @@ using MediaBrowser.Controller.Entities.Movies;
 using MediaBrowser.Controller.Providers;
 using MediaBrowser.Model.Entities;
 using MediaBrowser.Model.Providers;
+using Microsoft.Extensions.Logging;
+using MovieMethods = TMDbLib.Objects.Movies.MovieMethods;
 
 namespace Jellyfin.Plugin.LanguageAwareImages.Providers;
 
 public class LanguageAwareMovieImageProvider : LanguageAwareImageProviderBase, IRemoteImageProvider
 {
-    public LanguageAwareMovieImageProvider(IHttpClientFactory httpClientFactory)
-        : base(httpClientFactory)
+    public LanguageAwareMovieImageProvider(
+        IHttpClientFactory httpClientFactory,
+        ILogger<LanguageAwareMovieImageProvider> logger)
+        : base(httpClientFactory, logger)
     {
     }
 
@@ -35,11 +39,21 @@ public class LanguageAwareMovieImageProvider : LanguageAwareImageProviderBase, I
             ? Config.FallbackLanguage
             : preferredLanguage;
 
-        var client = CreateClient();
+        var client = GetClient();
+
+        // Fetch original_language only when the feature is on — saves an API call.
+        var originalLanguage = string.Empty;
+        if (Config.IncludeOriginalLanguage)
+        {
+            var movie = await client.GetMovieAsync(tmdbId, MovieMethods.Undefined, cancellationToken)
+                .ConfigureAwait(false);
+            originalLanguage = NormaliseLanguage(movie?.OriginalLanguage);
+        }
+
         var images = await client.GetMovieImagesAsync(
             tmdbId,
             language: apiLanguage,
-            includeImageLanguage: BuildIncludeLanguageParam(preferredLanguage),
+            includeImageLanguage: BuildIncludeLanguageParam(preferredLanguage, originalLanguage),
             cancellationToken: cancellationToken).ConfigureAwait(false);
 
         if (images is null)
@@ -48,9 +62,9 @@ public class LanguageAwareMovieImageProvider : LanguageAwareImageProviderBase, I
         }
 
         var result = new List<RemoteImageInfo>();
-        result.AddRange(RankAndMap(images.Posters, ImageType.Primary, preferredLanguage));
-        result.AddRange(RankAndMap(images.Backdrops, ImageType.Backdrop, preferredLanguage));
-        result.AddRange(RankAndMap(images.Logos, ImageType.Logo, preferredLanguage));
+        result.AddRange(RankAndMap(images.Posters, ImageType.Primary, preferredLanguage, originalLanguage));
+        result.AddRange(RankAndMap(images.Backdrops, ImageType.Backdrop, preferredLanguage, originalLanguage));
+        result.AddRange(RankAndMap(images.Logos, ImageType.Logo, preferredLanguage, originalLanguage));
         return result;
     }
 }

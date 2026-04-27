@@ -22,12 +22,20 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 
 *Admin → Plugins → Language-Aware Images*:
 
-| Field                       | Default | Notes                                                                          |
-| --------------------------- | :-----: | ------------------------------------------------------------------------------ |
-| `PreferredLanguageOverride` | empty   | Empty = use each library's metadata language. Set e.g. `de` to force globally. |
-| `FallbackLanguage`          |  `en`   | Used when no image in the preferred language exists.                           |
-| `IncludeNoLanguage`         | `false` | Allow textless images as last resort. Useful for logos, not for posters.       |
-| `TmdbApiKey`                | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
+| Field                            | Default | Notes                                                                          |
+| -------------------------------- | :-----: | ------------------------------------------------------------------------------ |
+| `PreferredLanguageOverride`      | empty   | Empty = use each library's metadata language. Set e.g. `de` to force globally. |
+| `FallbackLanguage`               |  `en`   | Used when no image in the preferred language exists.                           |
+| `IncludeOriginalLanguage`        | `false` | Add the title's original language as a third bucket (e.g. Japanese for anime). |
+| `IncludeNoLanguageForPosters`    | `false` | Allow textless posters as last resort.                                         |
+| `IncludeNoLanguageForBackdrops`  | `true`  | Backdrops are usually language-agnostic anyway.                                |
+| `IncludeNoLanguageForLogos`      | `true`  | Most studio logos are designed without text.                                   |
+| `MinimumVoteCount`               |   `1`   | Drops unvalidated junk uploads. Set `0` to disable.                            |
+| `TmdbApiKey`                     | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
+
+The bucket order — preferred → original (opt-in) → fallback → textless (opt-in
+per type) — and a `vote_count DESC, vote_average DESC` sort within each bucket
+matches TMDB's own `/images` UI.
 
 ## Why
 
