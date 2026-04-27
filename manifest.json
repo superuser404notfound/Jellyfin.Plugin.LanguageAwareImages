@@ -2,8 +2,8 @@
   {
     "guid": "08d643db-becc-42e6-aef9-6c677036ddd5",
     "name": "Language-Aware Images",
-    "description": "TMDB images filtered by library language and ranked by vote_count.",
-    "overview": "Replaces the built-in TMDB image provider with one that strictly respects PreferredLanguage and sorts within each language bucket the way TMDB's own /images UI does (vote_count DESC, vote_average DESC). Fixes jellyfin/jellyfin#8925 and #9878.",
+    "description": "TMDB images in your library's language with a clean fallback to English — no more textless posters.",
+    "overview": "Drop-in replacement for the built-in TMDB image provider. Enforces a clean cascade: library language → English → (optional) textless. Within each bucket images are sorted by vote_count DESC like TMDB's own /images UI. Fixes jellyfin/jellyfin#9878 (built-in prefers textless over English fallback).",
     "owner": "superuser404notfound",
     "category": "Metadata",
     "imageUrl": "",

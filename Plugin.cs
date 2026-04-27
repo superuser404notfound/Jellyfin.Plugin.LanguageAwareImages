@@ -21,7 +21,7 @@ public class Plugin : BasePlugin<PluginConfiguration>, IHasWebPages
     public override Guid Id => Guid.Parse("08d643db-becc-42e6-aef9-6c677036ddd5");
 
     public override string Description =>
-        "TMDB images filtered by library language and ranked by vote_count, matching TMDB's own UI sort order.";
+        "TMDB images in your library's language with a clean fallback to English — skips the textless posters the built-in provider falls back to.";
 
     public IEnumerable<PluginPageInfo> GetPages() => new[]
     {
