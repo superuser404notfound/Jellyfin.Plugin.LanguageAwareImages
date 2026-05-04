@@ -36,6 +36,7 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `IncludeNoLanguageForPosters`    | `false` | Allow textless posters as last resort.                                         |
 | `IncludeNoLanguageForBackdrops`  | `true`  | Backdrops are usually language-agnostic anyway.                                |
 | `IncludeNoLanguageForLogos`      | `true`  | Most studio logos are designed without text.                                   |
+| `SortByVotes`                    | `true`  | Sort by `vote_count` (TMDB UI behavior). Off = sort by `vote_average`.         |
 | `MinimumVoteCount`               |   `0`   | Drops images with fewer votes. `0` = keep everything (recommended).            |
 | `MatchEpisodeImagesByTitle`      | `true`  | Episode images by title-lookup, not by (S,E) position. Fixes alternative-order shows. |
 | `TmdbApiKey`                     | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
