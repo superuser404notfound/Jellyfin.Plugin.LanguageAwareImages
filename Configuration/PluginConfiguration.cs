@@ -44,9 +44,9 @@ public class PluginConfiguration : BasePluginConfiguration
     // and pulls the wrong still. TMDB's "episode_groups" API exists but is
     // community-edited and frequently mismatched with reality.
     //
-    // When this is on, the plugin fetches all TMDB episodes for the show once,
-    // builds a normalized-title → still_path map, and looks up your local
-    // episode title in it. Image is bound to title, not to position, so it
-    // works regardless of which order your library is in.
+    // Smart mode (always on inside the provider): we only inject a title-
+    // matched still when the local episode title at (S,E) differs from
+    // TMDB's title at the same (S,E). For in-sync shows we return nothing
+    // and the built-in provider's full image set is preserved.
     public bool MatchEpisodeImagesByTitle { get; set; } = true;
 }

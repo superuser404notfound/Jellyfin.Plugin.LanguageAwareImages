@@ -11,15 +11,25 @@ using TvShowMethods = TMDbLib.Objects.TvShows.TvShowMethods;
 namespace Jellyfin.Plugin.LanguageAwareImages.Providers;
 
 // Episode-level image provider that looks up TMDB stills by episode TITLE
-// rather than by (Season, Episode) index. This sidesteps the mess of
-// alternative orderings (Disney+, DVD, Production, regional) where TVDB and
-// TMDB disagree on which episode lives at which position.
+// rather than by (Season, Episode) index. Sidesteps the mess of alternative
+// orderings (Disney+, DVD, Production, regional) where TVDB and TMDB
+// disagree on which episode lives at which position.
 //
-// One API call per (show, language) on first encounter, cached per show.
+// Smart mode (always on, no toggle): we first check whether the TMDB title
+// at the local (S, E) position matches the local title. If they match, the
+// library is in sync with TMDB ordering — we return empty so the built-in
+// provider can deliver its full image set unimpeded. We only inject our
+// title-matched still when ordering actually differs.
+//
+// One TMDB call per (show, language) covers all seasons; cached for the
+// process lifetime.
 public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase, IRemoteImageProvider
 {
-    // (showId, language) → normalized-title → still_path
-    private static readonly ConcurrentDictionary<string, IReadOnlyDictionary<string, string>> ShowCache = new();
+    private record ShowEpisodeData(
+        Dictionary<string, string> TitleToStill,
+        Dictionary<(int Season, int Episode), string> PositionToNormalisedTitle);
+
+    private static readonly ConcurrentDictionary<string, ShowEpisodeData> ShowCache = new();
 
     public LanguageAwareEpisodeImageProvider(
         IHttpClientFactory httpClientFactory,
@@ -55,10 +65,28 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             ? Config.FallbackLanguage
             : preferredLanguage;
 
-        var map = await GetOrBuildTitleMap(showId, apiLanguage, cancellationToken).ConfigureAwait(false);
+        var data = await GetOrBuildShowData(showId, apiLanguage, cancellationToken).ConfigureAwait(false);
 
-        var key = NormaliseTitle(episode.Name);
-        if (!map.TryGetValue(key, out var stillPath))
+        var localNormalised = NormaliseTitle(episode.Name);
+
+        // Smart mode: if the TMDB title at the local (S, E) position already
+        // matches the local title, library is in sync with TMDB ordering.
+        // Return empty so the built-in TMDB image provider delivers its full
+        // image set (multiple stills, alt crops etc.) for this episode.
+        if (episode.ParentIndexNumber is int season
+            && episode.IndexNumber is int epNum
+            && data.PositionToNormalisedTitle.TryGetValue((season, epNum), out var tmdbTitleAtPos)
+            && tmdbTitleAtPos == localNormalised)
+        {
+            Logger.LogDebug(
+                "LanguageAwareImages Episode: '{Title}' is in sync at S{S}E{E} (show {ShowId}), deferring to built-in provider",
+                episode.Name, season, epNum, showId);
+            return Array.Empty<RemoteImageInfo>();
+        }
+
+        // Mismatch (or position unknown) — library uses an alternative order.
+        // Look up the still by title.
+        if (!data.TitleToStill.TryGetValue(localNormalised, out var stillPath))
         {
             Logger.LogDebug(
                 "LanguageAwareImages Episode: no title match for '{Title}' in show {ShowId} ({Lang})",
@@ -67,7 +95,7 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
         }
 
         Logger.LogDebug(
-            "LanguageAwareImages Episode: matched '{Title}' -> {Path} (show {ShowId})",
+            "LanguageAwareImages Episode: alt-order match '{Title}' -> {Path} (show {ShowId})",
             episode.Name, stillPath, showId);
 
         return new[]
@@ -81,7 +109,7 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
         };
     }
 
-    private async Task<IReadOnlyDictionary<string, string>> GetOrBuildTitleMap(
+    private async Task<ShowEpisodeData> GetOrBuildShowData(
         int showId, string language, CancellationToken cancellationToken)
     {
         var cacheKey = $"{showId}-{language}";
@@ -95,14 +123,17 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             showId, TvShowMethods.Undefined, language: language, cancellationToken: cancellationToken)
             .ConfigureAwait(false);
 
-        var map = new Dictionary<string, string>(StringComparer.Ordinal);
+        var titleToStill = new Dictionary<string, string>(StringComparer.Ordinal);
+        var positionToTitle = new Dictionary<(int, int), string>();
+
         if (show?.Seasons is null)
         {
-            ShowCache[cacheKey] = map;
-            return map;
+            var empty = new ShowEpisodeData(titleToStill, positionToTitle);
+            ShowCache[cacheKey] = empty;
+            return empty;
         }
 
-        // One API call per season (S0/specials excluded — those rarely have
+        // One API call per season (S0/specials excluded — they rarely have
         // alt-order issues and would just inflate the call count).
         foreach (var seasonInfo in show.Seasons.Where(s => s.SeasonNumber > 0))
         {
@@ -117,25 +148,32 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
 
             foreach (var ep in season.Episodes)
             {
-                if (string.IsNullOrWhiteSpace(ep.Name) || string.IsNullOrWhiteSpace(ep.StillPath))
+                if (string.IsNullOrWhiteSpace(ep.Name))
                 {
                     continue;
                 }
 
                 var key = NormaliseTitle(ep.Name);
-                // First match wins — duplicate titles within a show are rare
-                // (recap/clip episodes mostly), and the first occurrence is
-                // usually the canonical one.
-                map.TryAdd(key, ep.StillPath);
+
+                positionToTitle[(ep.SeasonNumber, (int)ep.EpisodeNumber)] = key;
+
+                if (!string.IsNullOrWhiteSpace(ep.StillPath))
+                {
+                    // First match wins — duplicate titles within a show are rare
+                    // (recap/clip episodes mostly), and the first occurrence is
+                    // usually the canonical one.
+                    titleToStill.TryAdd(key, ep.StillPath);
+                }
             }
         }
 
         Logger.LogDebug(
-            "LanguageAwareImages Episode: built title map for show {ShowId} ({Lang}) with {Count} entries",
-            showId, language, map.Count);
+            "LanguageAwareImages Episode: built data for show {ShowId} ({Lang}): {TitleCount} titles, {PosCount} positions",
+            showId, language, titleToStill.Count, positionToTitle.Count);
 
-        ShowCache[cacheKey] = map;
-        return map;
+        var data = new ShowEpisodeData(titleToStill, positionToTitle);
+        ShowCache[cacheKey] = data;
+        return data;
     }
 
     // Normalises titles for fuzzy-ish matching across providers:

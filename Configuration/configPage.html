@@ -103,10 +103,10 @@
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">
                             For shows with alternative orderings (Bluey, Star Trek, Doctor Who Classic etc.)
-                            where your library order doesn't match TMDB's. Looks up the still image by
-                            episode title instead of (Season, Episode) index — image is bound to title,
-                            not to position. Works regardless of which order your library is in. Costs
-                            one TMDB API call per season per show on first encounter, cached afterwards.
+                            where your library order doesn't match TMDB's. Smart mode: only intervenes when
+                            the TMDB title at (S, E) differs from your local title — in-sync shows still
+                            get the built-in provider's full image set. Costs one TMDB API call per season
+                            per show on first encounter, cached afterwards.
                         </div>
                     </div>
                 </div>

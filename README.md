@@ -81,10 +81,16 @@ TMDB episodes of the show once (cached per (show, language)) and matches your
 local episode title against TMDB's. Image is bound to title, not to position,
 so it works regardless of which order your library is in.
 
+**Smart mode** (always on): the provider checks whether the TMDB title at
+your local (S, E) position already matches your local title. If yes, your
+library is in sync with TMDB ordering — the provider returns nothing and
+Jellyfin's built-in provider delivers its full image set (multiple stills,
+alternative crops etc.) for that episode. The title-matched still is only
+injected when the library actually differs from TMDB's order.
+
 Title normalisation handles the most common variations (case, leading
-articles, punctuation, whitespace). If no match is found, the plugin returns
-nothing and Jellyfin's built-in provider takes over — same behaviour as
-before, no regression.
+articles, punctuation, whitespace). If no title match is found either, the
+plugin returns nothing and the built-in provider takes over — no regression.
 
 ## License
 
