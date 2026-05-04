@@ -35,4 +35,18 @@ public class PluginConfiguration : BasePluginConfiguration
     public int MinimumVoteCount { get; set; } = 0;
 
     public string TmdbApiKey { get; set; } = string.Empty;
+
+    // Episode images — match by title rather than by (S,E) index.
+    //
+    // Background: shows with alternative episode orderings (Bluey, Star Trek,
+    // Doctor Who Classic etc.) often have an order in TVDB that doesn't match
+    // TMDB's own ordering. The built-in TMDB image provider uses (S,E) directly
+    // and pulls the wrong still. TMDB's "episode_groups" API exists but is
+    // community-edited and frequently mismatched with reality.
+    //
+    // When this is on, the plugin fetches all TMDB episodes for the show once,
+    // builds a normalized-title → still_path map, and looks up your local
+    // episode title in it. Image is bound to title, not to position, so it
+    // works regardless of which order your library is in.
+    public bool MatchEpisodeImagesByTitle { get; set; } = true;
 }
