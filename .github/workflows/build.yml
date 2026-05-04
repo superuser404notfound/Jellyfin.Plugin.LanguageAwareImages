@@ -107,4 +107,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add manifest.json
           git commit -m "chore: publish ${TAG} to manifest [skip ci]"
-          git push origin HEAD:main
+
+          # Race protection: a parallel push (e.g. main-branch workflow run, or
+          # the developer pushing right after tagging) can leave us behind
+          # origin/main between checkout and push. Rebase on top with retry.
+          for attempt in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then
+              exit 0
+            fi
+            echo "push attempt $attempt failed, retrying"
+            sleep 2
+          done
+          echo "manifest push failed after 3 attempts"
+          exit 1
