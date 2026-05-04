@@ -94,6 +94,24 @@
                 </div>
 
                 <div class="verticalSection">
+                    <h3 class="checkboxListLabel">Episode images</h3>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="MatchEpisodeImagesByTitle" />
+                            <span>Match TMDB episode images by title (recommended)</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            For shows with alternative orderings (Bluey, Star Trek, Doctor Who Classic etc.)
+                            where your library order doesn't match TMDB's. Looks up the still image by
+                            episode title instead of (Season, Episode) index — image is bound to title,
+                            not to position. Works regardless of which order your library is in. Costs
+                            one TMDB API call per season per show on first encounter, cached afterwards.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
                     <h3 class="checkboxListLabel">TMDB API</h3>
 
                     <div class="inputContainer">
@@ -129,6 +147,7 @@
                         document.querySelector('#IncludeNoLanguageForBackdrops').checked = config.IncludeNoLanguageForBackdrops !== false;
                         document.querySelector('#IncludeNoLanguageForLogos').checked = config.IncludeNoLanguageForLogos !== false;
                         document.querySelector('#MinimumVoteCount').value = (config.MinimumVoteCount != null ? config.MinimumVoteCount : 0);
+                        document.querySelector('#MatchEpisodeImagesByTitle').checked = config.MatchEpisodeImagesByTitle !== false;
                         document.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
                         Dashboard.hideLoadingMsg();
                     });
@@ -146,6 +165,7 @@
                         config.IncludeNoLanguageForBackdrops = document.querySelector('#IncludeNoLanguageForBackdrops').checked;
                         config.IncludeNoLanguageForLogos = document.querySelector('#IncludeNoLanguageForLogos').checked;
                         config.MinimumVoteCount = parseInt(document.querySelector('#MinimumVoteCount').value, 10) || 0;
+                        config.MatchEpisodeImagesByTitle = document.querySelector('#MatchEpisodeImagesByTitle').checked;
                         config.TmdbApiKey = document.querySelector('#TmdbApiKey').value.trim();
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);

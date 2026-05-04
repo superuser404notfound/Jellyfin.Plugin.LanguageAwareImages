@@ -1,8 +1,14 @@
 # Language-Aware Images
 
-A drop-in TMDB image provider for Jellyfin that gives you posters in your
-library's language with a clean fallback to English — and skips the textless
-no-language posters the built-in provider often picks instead.
+A drop-in TMDB image provider for Jellyfin that gets two long-standing image
+issues out of the way:
+
+1. **Posters in your library's language** with a clean fallback to English — no
+   more textless no-language posters as the built-in provider's first fallback.
+2. **Episode images that match your library's order** — for shows like Bluey,
+   Star Trek or Doctor Who Classic where TVDB and TMDB disagree on which
+   episode lives at which (Season, Episode) position. Matched by title, not by
+   index, so the image is bound to the episode itself rather than its slot.
 
 ## Install
 
@@ -31,6 +37,7 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `IncludeNoLanguageForBackdrops`  | `true`  | Backdrops are usually language-agnostic anyway.                                |
 | `IncludeNoLanguageForLogos`      | `true`  | Most studio logos are designed without text.                                   |
 | `MinimumVoteCount`               |   `0`   | Drops images with fewer votes. `0` = keep everything (recommended).            |
+| `MatchEpisodeImagesByTitle`      | `true`  | Episode images by title-lookup, not by (S,E) position. Fixes alternative-order shows. |
 | `TmdbApiKey`                     | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
 
 The bucket order — preferred → original (opt-in) → fallback → textless (opt-in
@@ -39,9 +46,11 @@ matches TMDB's own `/images` UI.
 
 ## Why
 
+### Posters / backdrops / logos
+
 Jellyfin's built-in TMDB provider respects the library language for
-language-matched posters, but when no match exists it prefers **textless**
-(no-language-tag) posters over the English ones —
+language-matched images, but when no match exists it prefers **textless**
+(no-language-tag) ones over the English fallback —
 [jellyfin/jellyfin#9878](https://github.com/jellyfin/jellyfin/issues/9878).
 Textless posters on TMDB are often awkwardly chosen: cropped stills, alternate
 art, foreign-market exports without text. The result is a library that looks
@@ -49,13 +58,33 @@ visually inconsistent.
 
 This plugin enforces a clean cascade:
 
-1. Posters in the library's language
+1. Images in the library's language
 2. English fallback (configurable)
-3. Textless — only if you opt in (useful for logos, off by default)
+3. Textless — only if you opt in per image type (useful for logos, off by
+   default for posters)
 
 Within each bucket, images are sorted by `vote_count DESC, vote_average DESC` —
-the same order TMDB's `/images` UI uses, so you get the most popular poster
+the same order TMDB's `/images` UI uses, so you get the most popular image
 in the matching language rather than a random one.
+
+### Episode images for shows with alternative orderings
+
+If you watch *Bluey* in Disney+ order, *Star Trek* in chronological order, or
+*Doctor Who Classic* in DVD order, your library's (Season, Episode) numbering
+won't line up with TMDB's. The built-in TMDB image provider asks for "S2E5"
+literally and pulls the still that *TMDB* has at that position — which is the
+wrong episode entirely. TMDB's own `episode_groups` API exists in theory but
+is community-edited and frequently inaccurate.
+
+This plugin instead **looks up the still by episode title**: it fetches all
+TMDB episodes of the show once (cached per (show, language)) and matches your
+local episode title against TMDB's. Image is bound to title, not to position,
+so it works regardless of which order your library is in.
+
+Title normalisation handles the most common variations (case, leading
+articles, punctuation, whitespace). If no match is found, the plugin returns
+nothing and Jellyfin's built-in provider takes over — same behaviour as
+before, no regression.
 
 ## License
 
