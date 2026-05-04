@@ -34,6 +34,17 @@ public class PluginConfiguration : BasePluginConfiguration
     // aggressively trim unvalidated uploads.
     public int MinimumVoteCount { get; set; } = 0;
 
+    // Sort within each language bucket by vote_count (true) or vote_average
+    // (false). Defaults to true — that's the order TMDB's own /images UI uses,
+    // and the whole point of this plugin.
+    //
+    // Implementation note: Jellyfin's downstream OrderByLanguageDescending
+    // re-sorts our list by CommunityRating BEFORE VoteCount, so we have to
+    // suppress CommunityRating (set null) to get the vote-count primary sort
+    // we want. When false, CommunityRating is set to vote_average and
+    // Jellyfin's default rating-first sort applies.
+    public bool SortByVotes { get; set; } = true;
+
     public string TmdbApiKey { get; set; } = string.Empty;
 
     // Episode images — match by title rather than by (S,E) index.

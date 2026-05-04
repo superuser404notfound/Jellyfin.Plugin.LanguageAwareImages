@@ -188,6 +188,13 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
             return 99;
         }
 
+        // CommunityRating is set null when SortByVotes is on, because Jellyfin's
+        // downstream OrderByLanguageDescending sorts by CommunityRating before
+        // VoteCount — so leaving rating in place would override our vote-count
+        // primary sort with a rating primary sort. With CommunityRating null,
+        // all entries tie at 0 and Jellyfin falls through to VoteCount.
+        var sortByVotes = Config.SortByVotes;
+
         var ranked = images
             .Where(i => i.VoteCount >= minVotes)
             .Where(i => Rank(i.Iso_639_1) < 99)
@@ -202,7 +209,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
                 Width = i.Width,
                 Height = i.Height,
                 Language = DisguiseLanguage(i.Iso_639_1, preferredLanguage, fallback),
-                CommunityRating = i.VoteAverage,
+                CommunityRating = sortByVotes ? null : i.VoteAverage,
                 VoteCount = i.VoteCount,
                 RatingType = RatingType.Score
             })

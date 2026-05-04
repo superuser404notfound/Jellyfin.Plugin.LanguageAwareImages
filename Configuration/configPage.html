@@ -77,7 +77,21 @@
                 </div>
 
                 <div class="verticalSection">
-                    <h3 class="checkboxListLabel">Quality filters</h3>
+                    <h3 class="checkboxListLabel">Sorting and quality</h3>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="SortByVotes" />
+                            <span>Sort by vote count (recommended)</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Sorts images within each language bucket by <code>vote_count</code>
+                            (most popular first), matching TMDB's own <code>/images</code> UI.
+                            When off, sorts by <code>vote_average</code> (highest rating first) —
+                            which is Jellyfin's default behavior, but a single 5-star vote can
+                            outrank a 4.8-star image with 100 votes.
+                        </div>
+                    </div>
 
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="MinimumVoteCount">Minimum vote count</label>
@@ -147,6 +161,7 @@
                         document.querySelector('#IncludeNoLanguageForBackdrops').checked = config.IncludeNoLanguageForBackdrops !== false;
                         document.querySelector('#IncludeNoLanguageForLogos').checked = config.IncludeNoLanguageForLogos !== false;
                         document.querySelector('#MinimumVoteCount').value = (config.MinimumVoteCount != null ? config.MinimumVoteCount : 0);
+                        document.querySelector('#SortByVotes').checked = config.SortByVotes !== false;
                         document.querySelector('#MatchEpisodeImagesByTitle').checked = config.MatchEpisodeImagesByTitle !== false;
                         document.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
                         Dashboard.hideLoadingMsg();
@@ -165,6 +180,7 @@
                         config.IncludeNoLanguageForBackdrops = document.querySelector('#IncludeNoLanguageForBackdrops').checked;
                         config.IncludeNoLanguageForLogos = document.querySelector('#IncludeNoLanguageForLogos').checked;
                         config.MinimumVoteCount = parseInt(document.querySelector('#MinimumVoteCount').value, 10) || 0;
+                        config.SortByVotes = document.querySelector('#SortByVotes').checked;
                         config.MatchEpisodeImagesByTitle = document.querySelector('#MatchEpisodeImagesByTitle').checked;
                         config.TmdbApiKey = document.querySelector('#TmdbApiKey').value.trim();
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
