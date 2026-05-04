@@ -35,7 +35,7 @@ public class PluginConfiguration : BasePluginConfiguration
     public int MinimumVoteCount { get; set; } = 0;
 
     // Sort within each language bucket by vote_count (true) or vote_average
-    // (false). Defaults to true — that's the order TMDB's own /images UI uses,
+    // (false). Defaults to true, that's the order TMDB's own /images UI uses,
     // and the whole point of this plugin.
     //
     // Implementation note: Jellyfin's downstream OrderByLanguageDescending
@@ -47,7 +47,7 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public string TmdbApiKey { get; set; } = string.Empty;
 
-    // Episode images — match by title rather than by (S,E) index.
+    // Episode images: match by title rather than by (S,E) index.
     //
     // Background: shows with alternative episode orderings (Bluey, Star Trek,
     // Doctor Who Classic etc.) often have an order in TVDB that doesn't match

@@ -2,7 +2,7 @@
   "category": "Metadata",
   "guid": "08d643db-becc-42e6-aef9-6c677036ddd5",
   "name": "Language-Aware Images",
-  "description": "TMDB images in your library's language with a clean fallback to English — no more textless posters.",
+  "description": "TMDB images in your library's language with a clean fallback to English, no more textless posters.",
   "owner": "superuser404notfound",
   "overview": "Drop-in replacement for the built-in TMDB image provider. Enforces a clean cascade: library language → English → (optional) textless. Within each bucket images are sorted by vote_count DESC like TMDB's own /images UI. Fixes jellyfin/jellyfin#9878 (built-in prefers textless over English fallback).",
   "targetAbi": "10.10.0.0",

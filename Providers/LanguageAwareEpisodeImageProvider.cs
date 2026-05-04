@@ -17,7 +17,7 @@ namespace Jellyfin.Plugin.LanguageAwareImages.Providers;
 //
 // Smart mode (always on, no toggle): we first check whether the TMDB title
 // at the local (S, E) position matches the local title. If they match, the
-// library is in sync with TMDB ordering — we return empty so the built-in
+// library is in sync with TMDB ordering, we return empty so the built-in
 // provider can deliver its full image set unimpeded. We only inject our
 // title-matched still when ordering actually differs.
 //
@@ -84,7 +84,7 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             return Array.Empty<RemoteImageInfo>();
         }
 
-        // Mismatch (or position unknown) — library uses an alternative order.
+        // Mismatch (or position unknown), library uses an alternative order.
         // Look up the still by title.
         if (!data.TitleToStill.TryGetValue(localNormalised, out var stillPath))
         {
@@ -133,7 +133,7 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             return empty;
         }
 
-        // One API call per season (S0/specials excluded — they rarely have
+        // One API call per season (S0/specials excluded, they rarely have
         // alt-order issues and would just inflate the call count).
         foreach (var seasonInfo in show.Seasons.Where(s => s.SeasonNumber > 0))
         {
@@ -159,7 +159,7 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
 
                 if (!string.IsNullOrWhiteSpace(ep.StillPath))
                 {
-                    // First match wins — duplicate titles within a show are rare
+                    // First match wins, duplicate titles within a show are rare
                     // (recap/clip episodes mostly), and the first occurrence is
                     // usually the canonical one.
                     titleToStill.TryAdd(key, ep.StillPath);

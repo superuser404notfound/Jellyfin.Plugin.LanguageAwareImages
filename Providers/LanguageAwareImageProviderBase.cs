@@ -132,7 +132,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     }
 
     // Heart of the plugin: filter by language bucket + min vote count, then
-    // ORDER BY vote_count DESC, vote_average DESC — the same ordering TMDB's
+    // ORDER BY vote_count DESC, vote_average DESC, the same ordering TMDB's
     // own /images UI uses.
     //
     // Bucket ranks:
@@ -190,7 +190,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
 
         // CommunityRating is set null when SortByVotes is on, because Jellyfin's
         // downstream OrderByLanguageDescending sorts by CommunityRating before
-        // VoteCount — so leaving rating in place would override our vote-count
+        // VoteCount, so leaving rating in place would override our vote-count
         // primary sort with a rating primary sort. With CommunityRating null,
         // all entries tie at 0 and Jellyfin falls through to VoteCount.
         var sortByVotes = Config.SortByVotes;
@@ -228,7 +228,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
 
     // Jellyfin's ProviderManager filters the returned RemoteImageInfo list down
     // to {empty | preferred | "en"} unless the UI's "All languages" toggle is
-    // set, then sorts what's left with OrderByLanguageDescending(preferred) —
+    // set, then sorts what's left with OrderByLanguageDescending(preferred),
     // which puts preferred first and English second. Both behaviors hide the
     // original-language bucket we worked to fetch (e.g. Japanese posters for
     // an anime in a German library).

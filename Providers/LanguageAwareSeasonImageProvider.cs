@@ -19,7 +19,7 @@ public class LanguageAwareSeasonImageProvider : LanguageAwareImageProviderBase, 
 
     public bool Supports(BaseItem item) => item is Season;
 
-    // TMDB only exposes posters at the season level — no backdrops or logos.
+    // TMDB only exposes posters at the season level, no backdrops or logos.
     public IEnumerable<ImageType> GetSupportedImages(BaseItem item) => new[]
     {
         ImageType.Primary

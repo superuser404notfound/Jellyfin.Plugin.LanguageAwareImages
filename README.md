@@ -3,9 +3,9 @@
 A drop-in TMDB image provider for Jellyfin that gets two long-standing image
 issues out of the way:
 
-1. **Posters in your library's language** with a clean fallback to English — no
+1. **Posters in your library's language** with a clean fallback to English, no
    more textless no-language posters as the built-in provider's first fallback.
-2. **Episode images that match your library's order** — for shows like Bluey,
+2. **Episode images that match your library's order** for shows like Bluey,
    Star Trek or Doctor Who Classic where TVDB and TMDB disagree on which
    episode lives at which (Season, Episode) position. Matched by title, not by
    index, so the image is bound to the episode itself rather than its slot.
@@ -21,7 +21,7 @@ https://raw.githubusercontent.com/superuser404notfound/jellyfin-plugin-language-
 Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the server.
 
 > After install, go to *Admin → Library → (your library) → Image Fetchers* and
-> drag **Language-Aware TMDB Images** to the top — otherwise the built-in
+> drag **Language-Aware TMDB Images** to the top, otherwise the built-in
 > provider still wins.
 
 ## Configuration
@@ -41,8 +41,8 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `MatchEpisodeImagesByTitle`      | `true`  | Episode images by title-lookup, not by (S,E) position. Fixes alternative-order shows. |
 | `TmdbApiKey`                     | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
 
-The bucket order — preferred → original (opt-in) → fallback → textless (opt-in
-per type) — and a `vote_count DESC, vote_average DESC` sort within each bucket
+The bucket order (preferred, original (opt-in), fallback, textless (opt-in
+per type)) and a `vote_count DESC, vote_average DESC` sort within each bucket
 matches TMDB's own `/images` UI.
 
 ## Why
@@ -51,7 +51,7 @@ matches TMDB's own `/images` UI.
 
 Jellyfin's built-in TMDB provider respects the library language for
 language-matched images, but when no match exists it prefers **textless**
-(no-language-tag) ones over the English fallback —
+(no-language-tag) ones over the English fallback,
 [jellyfin/jellyfin#9878](https://github.com/jellyfin/jellyfin/issues/9878).
 Textless posters on TMDB are often awkwardly chosen: cropped stills, alternate
 art, foreign-market exports without text. The result is a library that looks
@@ -61,10 +61,10 @@ This plugin enforces a clean cascade:
 
 1. Images in the library's language
 2. English fallback (configurable)
-3. Textless — only if you opt in per image type (useful for logos, off by
+3. Textless, only if you opt in per image type (useful for logos, off by
    default for posters)
 
-Within each bucket, images are sorted by `vote_count DESC, vote_average DESC` —
+Within each bucket, images are sorted by `vote_count DESC, vote_average DESC`,
 the same order TMDB's `/images` UI uses, so you get the most popular image
 in the matching language rather than a random one.
 
@@ -73,7 +73,7 @@ in the matching language rather than a random one.
 If you watch *Bluey* in Disney+ order, *Star Trek* in chronological order, or
 *Doctor Who Classic* in DVD order, your library's (Season, Episode) numbering
 won't line up with TMDB's. The built-in TMDB image provider asks for "S2E5"
-literally and pulls the still that *TMDB* has at that position — which is the
+literally and pulls the still that *TMDB* has at that position, which is the
 wrong episode entirely. TMDB's own `episode_groups` API exists in theory but
 is community-edited and frequently inaccurate.
 
@@ -84,14 +84,14 @@ so it works regardless of which order your library is in.
 
 **Smart mode** (always on): the provider checks whether the TMDB title at
 your local (S, E) position already matches your local title. If yes, your
-library is in sync with TMDB ordering — the provider returns nothing and
+library is in sync with TMDB ordering, the provider returns nothing and
 Jellyfin's built-in provider delivers its full image set (multiple stills,
 alternative crops etc.) for that episode. The title-matched still is only
 injected when the library actually differs from TMDB's order.
 
 Title normalisation handles the most common variations (case, leading
 articles, punctuation, whitespace). If no title match is found either, the
-plugin returns nothing and the built-in provider takes over — no regression.
+plugin returns nothing and the built-in provider takes over, no regression.
 
 ## License
 

@@ -41,7 +41,7 @@ public class LanguageAwareMovieImageProvider : LanguageAwareImageProviderBase, I
 
         var client = GetClient();
 
-        // Fetch original_language only when the feature is on — saves an API call.
+        // Fetch original_language only when the feature is on, saves an API call.
         var originalLanguage = string.Empty;
         if (Config.IncludeOriginalLanguage)
         {
