@@ -9,6 +9,14 @@
     "imageUrl": "",
     "versions": [
       {
+        "version": "0.7.1.0",
+        "changelog": "Release 0.7.1.0",
+        "targetAbi": "10.10.0.0",
+        "sourceUrl": "https://github.com/superuser404notfound/jellyfin-plugin-language-aware-images/releases/download/v0.7.1/language-aware-images_0.7.1.0.zip",
+        "checksum": "84e3734c34b8f748596390ceb05f66ee",
+        "timestamp": "2026-05-05T10:11:02Z"
+      },
+      {
         "version": "0.7.0.0",
         "changelog": "Release 0.7.0.0",
         "targetAbi": "10.10.0.0",
