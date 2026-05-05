@@ -10,6 +10,8 @@ issues out of the way:
    episode lives at which (Season, Episode) position. Matched by title, not by
    index, so the image is bound to the episode itself rather than its slot.
 
+> Also from the same dev: [Sodalite](https://github.com/superuser404notfound/Sodalite), a native Apple TV client for Jellyfin with first-class Jellyseerr integration. Public [TestFlight beta](https://testflight.apple.com/join/nWeQzmBX) is open.
+
 ## Install
 
 In Jellyfin: *Admin → Plugins → Repositories → +* and add
