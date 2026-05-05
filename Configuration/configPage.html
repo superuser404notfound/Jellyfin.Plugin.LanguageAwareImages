@@ -49,6 +49,19 @@
                             Costs one extra API call per item.
                         </div>
                     </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="OnlyOriginalLanguageForPosters" />
+                            <span>Posters: only use the original language (strict)</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            Strict mode for posters: drops everything that isn't in the title's
+                            original language. For purists who want the original artwork no matter
+                            what their library language is. Implies "Also include the title's
+                            original language". Backdrops and logos are unaffected.
+                        </div>
+                    </div>
                 </div>
 
                 <div class="verticalSection">
@@ -210,6 +223,7 @@
                         document.querySelector('#PreferredLanguageOverride').value = config.PreferredLanguageOverride || '';
                         document.querySelector('#FallbackLanguage').value = config.FallbackLanguage || 'en';
                         document.querySelector('#IncludeOriginalLanguage').checked = !!config.IncludeOriginalLanguage;
+                        document.querySelector('#OnlyOriginalLanguageForPosters').checked = !!config.OnlyOriginalLanguageForPosters;
                         document.querySelector('#IncludeNoLanguageForPosters').checked = !!config.IncludeNoLanguageForPosters;
                         document.querySelector('#IncludeNoLanguageForBackdrops').checked = config.IncludeNoLanguageForBackdrops !== false;
                         document.querySelector('#IncludeNoLanguageForLogos').checked = config.IncludeNoLanguageForLogos !== false;
@@ -233,6 +247,7 @@
                         config.PreferredLanguageOverride = document.querySelector('#PreferredLanguageOverride').value.trim().toLowerCase();
                         config.FallbackLanguage = document.querySelector('#FallbackLanguage').value.trim().toLowerCase();
                         config.IncludeOriginalLanguage = document.querySelector('#IncludeOriginalLanguage').checked;
+                        config.OnlyOriginalLanguageForPosters = document.querySelector('#OnlyOriginalLanguageForPosters').checked;
                         config.IncludeNoLanguageForPosters = document.querySelector('#IncludeNoLanguageForPosters').checked;
                         config.IncludeNoLanguageForBackdrops = document.querySelector('#IncludeNoLanguageForBackdrops').checked;
                         config.IncludeNoLanguageForLogos = document.querySelector('#IncludeNoLanguageForLogos').checked;

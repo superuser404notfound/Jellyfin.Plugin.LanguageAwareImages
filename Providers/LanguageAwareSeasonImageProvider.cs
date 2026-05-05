@@ -47,7 +47,7 @@ public class LanguageAwareSeasonImageProvider : LanguageAwareImageProviderBase, 
 
         // Seasons inherit original_language from the parent show.
         var originalLanguage = string.Empty;
-        if (Config.IncludeOriginalLanguage)
+        if (NeedsOriginalLanguage())
         {
             var show = await client.GetTvShowAsync(seriesTmdbId, TvShowMethods.Undefined, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);

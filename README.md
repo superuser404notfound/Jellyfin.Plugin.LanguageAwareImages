@@ -35,6 +35,7 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `PreferredLanguageOverride`      | empty   | Empty = use each library's metadata language. Set e.g. `de` to force globally. |
 | `FallbackLanguage`               |  `en`   | Used when no image in the preferred language exists.                           |
 | `IncludeOriginalLanguage`        | `false` | Add the title's original language as a third bucket (e.g. Japanese for anime). |
+| `OnlyOriginalLanguageForPosters` | `false` | Strict mode: posters only in original language, drops all other buckets. Backdrops/logos unaffected. |
 | `IncludeNoLanguageForPosters`    | `false` | Allow textless posters as last resort.                                         |
 | `IncludeNoLanguageForBackdrops`  | `true`  | Backdrops are usually language-agnostic anyway.                                |
 | `IncludeNoLanguageForLogos`      | `true`  | Most studio logos are designed without text.                                   |

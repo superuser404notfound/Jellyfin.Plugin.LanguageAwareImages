@@ -27,6 +27,14 @@ public class PluginConfiguration : BasePluginConfiguration
     // Princess Mononoke instead of being forced to the US-marketing version.
     public bool IncludeOriginalLanguage { get; set; } = false;
 
+    // Strict mode for posters (Primary image type): keep ONLY images in the
+    // title's original_language, drop preferred / fallback / textless entries.
+    // For purists who want the original artwork no matter what their library
+    // language is. Implies IncludeOriginalLanguage. Returns empty (so the
+    // built-in provider takes over) when original_language is unknown.
+    // Backdrops and logos are unaffected, they keep the normal cascade.
+    public bool OnlyOriginalLanguageForPosters { get; set; } = false;
+
     // Drops images with fewer than this many TMDB votes. Default 0 = keep
     // everything; a vote_count of 0 often just means "not voted on yet" rather
     // than "junk", and language-matched images with no votes are still

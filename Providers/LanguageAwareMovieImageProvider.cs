@@ -41,9 +41,9 @@ public class LanguageAwareMovieImageProvider : LanguageAwareImageProviderBase, I
 
         var client = GetClient();
 
-        // Fetch original_language only when the feature is on, saves an API call.
+        // Fetch original_language only when a feature needs it, saves an API call.
         var originalLanguage = string.Empty;
-        if (Config.IncludeOriginalLanguage)
+        if (NeedsOriginalLanguage())
         {
             var movie = await client.GetMovieAsync(tmdbId, MovieMethods.Undefined, cancellationToken)
                 .ConfigureAwait(false);

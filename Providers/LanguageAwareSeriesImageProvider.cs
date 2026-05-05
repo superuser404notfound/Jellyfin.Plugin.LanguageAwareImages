@@ -42,7 +42,7 @@ public class LanguageAwareSeriesImageProvider : LanguageAwareImageProviderBase, 
         var client = GetClient();
 
         var originalLanguage = string.Empty;
-        if (Config.IncludeOriginalLanguage)
+        if (NeedsOriginalLanguage())
         {
             var show = await client.GetTvShowAsync(tmdbId, TvShowMethods.Undefined, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);

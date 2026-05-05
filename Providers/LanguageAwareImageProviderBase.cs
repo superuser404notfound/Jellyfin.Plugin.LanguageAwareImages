@@ -137,6 +137,11 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         || Config.IncludeNoLanguageForBackdrops
         || Config.IncludeNoLanguageForLogos;
 
+    // True if any feature requires us to fetch the title's original_language
+    // from TMDB. OnlyOriginalLanguageForPosters implies it.
+    protected static bool NeedsOriginalLanguage() =>
+        Config.IncludeOriginalLanguage || Config.OnlyOriginalLanguageForPosters;
+
     // TMDB's `include_image_language` accepts a comma list. The literal token
     // "null" pulls textless images. Order in the list does not affect ranking;
     // we apply our own bucket sort below.
@@ -148,7 +153,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
             parts.Add(preferredLanguage);
         }
 
-        if (Config.IncludeOriginalLanguage && !string.IsNullOrWhiteSpace(originalLanguage))
+        if (NeedsOriginalLanguage() && !string.IsNullOrWhiteSpace(originalLanguage))
         {
             parts.Add(originalLanguage);
         }
@@ -195,8 +200,26 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
             && !string.Equals(originalLanguage, fallback, StringComparison.OrdinalIgnoreCase);
         var minVotes = Math.Max(0, Config.MinimumVoteCount);
 
+        // Strict mode: for posters only, when OnlyOriginalLanguageForPosters
+        // is on, drop everything that isn't in the title's original language.
+        // Returns nothing if original_language is unknown so the built-in
+        // provider can take over.
+        var strictOriginalForPosters = type == ImageType.Primary
+            && Config.OnlyOriginalLanguageForPosters;
+        if (strictOriginalForPosters && string.IsNullOrEmpty(originalLanguage))
+        {
+            return Array.Empty<RemoteImageInfo>();
+        }
+
         int Rank(string? iso)
         {
+            if (strictOriginalForPosters)
+            {
+                return string.Equals(iso, originalLanguage, StringComparison.OrdinalIgnoreCase)
+                    ? 0
+                    : 99;
+            }
+
             if (!string.IsNullOrEmpty(preferredLanguage)
                 && string.Equals(iso, preferredLanguage, StringComparison.OrdinalIgnoreCase))
             {
