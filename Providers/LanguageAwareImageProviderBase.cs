@@ -17,7 +17,42 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     // when the user hasn't provided their own.
     protected const string DefaultJellyfinTmdbKey = "4219e299c89411838049ab0dab19ebd5";
 
-    protected const string TmdbImageBaseUrl = "https://image.tmdb.org/t/p/original";
+    private const string TmdbImageHost = "https://image.tmdb.org/t/p/";
+
+    // Builds the TMDB image URL for a given image type using the size
+    // configured by the user. Falls back to "original" if the type doesn't
+    // map (shouldn't happen for the four types we support).
+    protected static string BuildImageUrl(ImageType type, string? filePath)
+    {
+        if (string.IsNullOrEmpty(filePath))
+        {
+            return string.Empty;
+        }
+
+        var size = type switch
+        {
+            ImageType.Primary => Config.PosterImageSize,
+            ImageType.Backdrop => Config.BackdropImageSize,
+            ImageType.Logo => Config.LogoImageSize,
+            _ => "original"
+        };
+
+        if (string.IsNullOrWhiteSpace(size))
+        {
+            size = "original";
+        }
+
+        return TmdbImageHost + size + filePath;
+    }
+
+    // For episode stills (Still type isn't in Jellyfin's ImageType enum at the
+    // poster/backdrop level, episode images use ImageType.Primary too, so we
+    // expose this separately).
+    protected static string BuildStillUrl(string filePath)
+    {
+        var size = string.IsNullOrWhiteSpace(Config.StillImageSize) ? "original" : Config.StillImageSize;
+        return TmdbImageHost + size + filePath;
+    }
 
     protected readonly IHttpClientFactory HttpClientFactory;
     protected readonly ILogger Logger;
@@ -205,7 +240,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
             {
                 ProviderName = Name,
                 Type = type,
-                Url = TmdbImageBaseUrl + i.FilePath,
+                Url = BuildImageUrl(type, i.FilePath),
                 Width = i.Width,
                 Height = i.Height,
                 Language = DisguiseLanguage(i.Iso_639_1, preferredLanguage, fallback),

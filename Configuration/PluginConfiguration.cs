@@ -47,6 +47,23 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public string TmdbApiKey { get; set; } = string.Empty;
 
+    // Image scaling per type. TMDB serves images at preset widths via
+    // /t/p/{size}/{file_path}. Smaller sizes save bandwidth and disk space
+    // (Jellyfin re-downloads each pick) at the cost of resolution.
+    // Valid values per type (from TMDB's /configuration endpoint):
+    //   poster:   w92, w154, w185, w342, w500, w780, original
+    //   backdrop: w300, w780, w1280, original
+    //   logo:     w45, w92, w154, w185, w300, w500, original
+    //   still:    w92, w185, w300, original
+    // Defaults match the built-in TMDB plugin (all original).
+    public string PosterImageSize { get; set; } = "original";
+
+    public string BackdropImageSize { get; set; } = "original";
+
+    public string LogoImageSize { get; set; } = "original";
+
+    public string StillImageSize { get; set; } = "original";
+
     // Episode images: match by title rather than by (S,E) index.
     //
     // Background: shows with alternative episode orderings (Bluey, Star Trek,

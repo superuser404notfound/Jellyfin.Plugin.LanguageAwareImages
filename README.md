@@ -39,6 +39,10 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `SortByVotes`                    | `true`  | Sort by `vote_count` (TMDB UI behavior). Off = sort by `vote_average`.         |
 | `MinimumVoteCount`               |   `0`   | Drops images with fewer votes. `0` = keep everything (recommended).            |
 | `MatchEpisodeImagesByTitle`      | `true`  | Episode images by title-lookup, not by (S,E) position. Fixes alternative-order shows. |
+| `PosterImageSize`                | `original` | TMDB poster size: w92, w154, w185, w342, w500, w780, original.            |
+| `BackdropImageSize`              | `original` | TMDB backdrop size: w300, w780, w1280, original.                          |
+| `LogoImageSize`                  | `original` | TMDB logo size: w45, w92, w154, w185, w300, w500, original.               |
+| `StillImageSize`                 | `original` | TMDB episode still size: w92, w185, w300, original.                       |
 | `TmdbApiKey`                     | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
 
 The bucket order (preferred, original (opt-in), fallback, textless (opt-in

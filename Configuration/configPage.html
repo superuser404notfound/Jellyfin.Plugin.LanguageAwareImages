@@ -126,6 +126,59 @@
                 </div>
 
                 <div class="verticalSection">
+                    <h3 class="checkboxListLabel">Image scaling</h3>
+                    <p style="margin-top: 0.5em">TMDB serves images at preset widths. Smaller saves
+                       bandwidth and disk; larger gives more resolution. Defaults match the official
+                       TMDB plugin (all original).</p>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="PosterImageSize">Poster</label>
+                        <select is="emby-select" id="PosterImageSize">
+                            <option value="w92">w92</option>
+                            <option value="w154">w154</option>
+                            <option value="w185">w185</option>
+                            <option value="w342">w342</option>
+                            <option value="w500">w500</option>
+                            <option value="w780">w780</option>
+                            <option value="original">original</option>
+                        </select>
+                    </div>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="BackdropImageSize">Backdrop</label>
+                        <select is="emby-select" id="BackdropImageSize">
+                            <option value="w300">w300</option>
+                            <option value="w780">w780</option>
+                            <option value="w1280">w1280</option>
+                            <option value="original">original</option>
+                        </select>
+                    </div>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="LogoImageSize">Logo</label>
+                        <select is="emby-select" id="LogoImageSize">
+                            <option value="w45">w45</option>
+                            <option value="w92">w92</option>
+                            <option value="w154">w154</option>
+                            <option value="w185">w185</option>
+                            <option value="w300">w300</option>
+                            <option value="w500">w500</option>
+                            <option value="original">original</option>
+                        </select>
+                    </div>
+
+                    <div class="selectContainer">
+                        <label class="selectLabel" for="StillImageSize">Still (episode images)</label>
+                        <select is="emby-select" id="StillImageSize">
+                            <option value="w92">w92</option>
+                            <option value="w185">w185</option>
+                            <option value="w300">w300</option>
+                            <option value="original">original</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="verticalSection">
                     <h3 class="checkboxListLabel">TMDB API</h3>
 
                     <div class="inputContainer">
@@ -163,6 +216,10 @@
                         document.querySelector('#MinimumVoteCount').value = (config.MinimumVoteCount != null ? config.MinimumVoteCount : 0);
                         document.querySelector('#SortByVotes').checked = config.SortByVotes !== false;
                         document.querySelector('#MatchEpisodeImagesByTitle').checked = config.MatchEpisodeImagesByTitle !== false;
+                        document.querySelector('#PosterImageSize').value = config.PosterImageSize || 'original';
+                        document.querySelector('#BackdropImageSize').value = config.BackdropImageSize || 'original';
+                        document.querySelector('#LogoImageSize').value = config.LogoImageSize || 'original';
+                        document.querySelector('#StillImageSize').value = config.StillImageSize || 'original';
                         document.querySelector('#TmdbApiKey').value = config.TmdbApiKey || '';
                         Dashboard.hideLoadingMsg();
                     });
@@ -182,6 +239,10 @@
                         config.MinimumVoteCount = parseInt(document.querySelector('#MinimumVoteCount').value, 10) || 0;
                         config.SortByVotes = document.querySelector('#SortByVotes').checked;
                         config.MatchEpisodeImagesByTitle = document.querySelector('#MatchEpisodeImagesByTitle').checked;
+                        config.PosterImageSize = document.querySelector('#PosterImageSize').value;
+                        config.BackdropImageSize = document.querySelector('#BackdropImageSize').value;
+                        config.LogoImageSize = document.querySelector('#LogoImageSize').value;
+                        config.StillImageSize = document.querySelector('#StillImageSize').value;
                         config.TmdbApiKey = document.querySelector('#TmdbApiKey').value.trim();
                         ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
                             Dashboard.processPluginConfigurationUpdateResult(result);

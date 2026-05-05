@@ -104,7 +104,7 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             {
                 ProviderName = Name,
                 Type = ImageType.Primary,
-                Url = TmdbImageBaseUrl + stillPath
+                Url = BuildStillUrl(stillPath)
             }
         };
     }

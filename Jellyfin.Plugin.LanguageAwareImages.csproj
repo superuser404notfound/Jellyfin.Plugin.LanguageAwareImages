@@ -5,8 +5,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
-    <AssemblyVersion>0.6.0.0</AssemblyVersion>
-    <FileVersion>0.6.0.0</FileVersion>
+    <AssemblyVersion>0.7.0.0</AssemblyVersion>
+    <FileVersion>0.7.0.0</FileVersion>
     <RootNamespace>Jellyfin.Plugin.LanguageAwareImages</RootNamespace>
     <AssemblyName>Jellyfin.Plugin.LanguageAwareImages</AssemblyName>
   </PropertyGroup>
