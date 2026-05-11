@@ -94,9 +94,25 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             return Array.Empty<RemoteImageInfo>();
         }
 
-        Logger.LogDebug(
-            "LanguageAwareImages Episode: alt-order match '{Title}' -> {Path} (show {ShowId})",
-            episode.Name, stillPath, showId);
+        // Tag the still with the preferred language so it survives Jellyfin's
+        // downstream language filter (which allows {empty, preferred, fallback})
+        // AND ranks above the built-in provider's wrong-position still in
+        // OrderByLanguageDescending(preferred). Episode stills are
+        // language-agnostic images on TMDB; we only set Language here for
+        // Jellyfin's pipeline arithmetic. If we have neither preferred nor
+        // fallback configured, leave it null (still survives the filter).
+        var imageLanguage = !string.IsNullOrEmpty(preferredLanguage)
+            ? preferredLanguage
+            : (!string.IsNullOrEmpty(Config.FallbackLanguage) ? Config.FallbackLanguage : null);
+
+        Logger.LogInformation(
+            "LanguageAwareImages Episode: alt-order match '{Title}' at S{S}E{E} (show {ShowId}, lang {Lang}) -> {Path}",
+            episode.Name,
+            episode.ParentIndexNumber,
+            episode.IndexNumber,
+            showId,
+            imageLanguage ?? "<null>",
+            stillPath);
 
         return new[]
         {
@@ -104,7 +120,8 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             {
                 ProviderName = Name,
                 Type = ImageType.Primary,
-                Url = BuildStillUrl(stillPath)
+                Url = BuildStillUrl(stillPath),
+                Language = imageLanguage
             }
         };
     }
