@@ -85,12 +85,31 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
         }
 
         // Mismatch (or position unknown), library uses an alternative order.
-        // Look up the still by title.
-        if (!data.TitleToStill.TryGetValue(localNormalised, out var stillPath))
+        // Look up the still by title. Build a list of candidate titles, the
+        // full title first and then each "/"-separated component, to cover
+        // combined-episode shows like SpongeBob altdvd where one library
+        // entry "Hey, dein Schuh ist offen / Der Stellvertreter" maps to two
+        // separate TMDB single-sketch episodes; the first half is canonical
+        // enough that its still works for the combined episode.
+        var candidates = BuildTitleCandidates(episode.Name, localNormalised);
+
+        string? stillPath = null;
+        string? matchedTitle = null;
+        foreach (var candidate in candidates)
+        {
+            if (data.TitleToStill.TryGetValue(candidate, out var found))
+            {
+                stillPath = found;
+                matchedTitle = candidate;
+                break;
+            }
+        }
+
+        if (stillPath is null)
         {
             Logger.LogDebug(
-                "LanguageAwareImages Episode: no title match for '{Title}' in show {ShowId} ({Lang})",
-                episode.Name, showId, apiLanguage);
+                "LanguageAwareImages Episode: no title match for '{Title}' (tried {Count} candidates) in show {ShowId} ({Lang})",
+                episode.Name, candidates.Count, showId, apiLanguage);
             return Array.Empty<RemoteImageInfo>();
         }
 
@@ -106,8 +125,9 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             : (!string.IsNullOrEmpty(Config.FallbackLanguage) ? Config.FallbackLanguage : null);
 
         Logger.LogInformation(
-            "LanguageAwareImages Episode: alt-order match '{Title}' at S{S}E{E} (show {ShowId}, lang {Lang}) -> {Path}",
+            "LanguageAwareImages Episode: alt-order match '{Title}' (matched candidate '{Candidate}') at S{S}E{E} (show {ShowId}, lang {Lang}) -> {Path}",
             episode.Name,
+            matchedTitle,
             episode.ParentIndexNumber,
             episode.IndexNumber,
             showId,
@@ -193,13 +213,50 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
         return data;
     }
 
+    // Builds an ordered list of normalised titles to try against the TMDB
+    // titleToStill dictionary. Order is significant: first match wins.
+    //
+    // 1. The full normalised title, in case the show legitimately has a "/"
+    //    in a single episode's title.
+    // 2. Each "/"-separated component, normalised. Covers combined-episode
+    //    libraries (TVDB altdvd combined like "A / B", TMDB has A and B as
+    //    separate single-sketch episodes), where the still for the first
+    //    sketch is a reasonable image for the combined entry.
+    //
+    // Returns distinct entries only, in insertion order.
+    private static IReadOnlyList<string> BuildTitleCandidates(string rawTitle, string normalisedFullTitle)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var ordered = new List<string>();
+
+        void Add(string s)
+        {
+            if (!string.IsNullOrEmpty(s) && seen.Add(s))
+            {
+                ordered.Add(s);
+            }
+        }
+
+        Add(normalisedFullTitle);
+
+        if (rawTitle.Contains('/'))
+        {
+            foreach (var part in rawTitle.Split('/', StringSplitOptions.RemoveEmptyEntries))
+            {
+                Add(NormaliseTitle(part));
+            }
+        }
+
+        return ordered;
+    }
+
     // Normalises titles for fuzzy-ish matching across providers:
     //   "Das Omelette" / "Omelette" / "OMELETTE!" → "omelette"
     // Strips a leading article (DE/EN), lowercases, drops whitespace and
     // punctuation. Survives most legitimate title variations between TVDB
     // and TMDB without resorting to full Levenshtein.
     private static readonly string[] LeadingArticles =
-        { "der ", "die ", "das ", "den ", "dem ", "the ", "a ", "an " };
+        { "der ", "die ", "das ", "den ", "dem ", "ein ", "eine ", "the ", "a ", "an " };
 
     private static string NormaliseTitle(string title)
     {
