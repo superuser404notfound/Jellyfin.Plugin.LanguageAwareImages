@@ -15,19 +15,19 @@ namespace Jellyfin.Plugin.LanguageAwareImages.Providers;
 // orderings (Disney+, DVD, Production, regional) where TVDB and TMDB
 // disagree on which episode lives at which position.
 //
-// Smart mode (always on, no toggle): we first check whether the TMDB title
-// at the local (S, E) position matches the local title. If they match, the
-// library is in sync with TMDB ordering, we return empty so the built-in
-// provider can deliver its full image set unimpeded. We only inject our
-// title-matched still when ordering actually differs.
+// The provider always returns the title-matched still when it finds one,
+// tagged with the preferred language so it wins Jellyfin's downstream sort
+// (OrderByLanguageDescending) over the built-in provider's positional still.
+// For in-sync libraries the still happens to be the same image the built-in
+// would have returned, just with a proper language tag so our entry ranks
+// at the top of the image picker.
 //
 // One TMDB call per (show, language) covers all seasons; cached for the
 // process lifetime.
 public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase, IRemoteImageProvider
 {
     private record ShowEpisodeData(
-        Dictionary<string, string> TitleToStill,
-        Dictionary<(int Season, int Episode), string> PositionToNormalisedTitle);
+        Dictionary<string, string> TitleToStill);
 
     private static readonly ConcurrentDictionary<string, ShowEpisodeData> ShowCache = new();
 
@@ -69,22 +69,6 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
 
         var localNormalised = NormaliseTitle(episode.Name);
 
-        // Smart mode: if the TMDB title at the local (S, E) position already
-        // matches the local title, library is in sync with TMDB ordering.
-        // Return empty so the built-in TMDB image provider delivers its full
-        // image set (multiple stills, alt crops etc.) for this episode.
-        if (episode.ParentIndexNumber is int season
-            && episode.IndexNumber is int epNum
-            && data.PositionToNormalisedTitle.TryGetValue((season, epNum), out var tmdbTitleAtPos)
-            && tmdbTitleAtPos == localNormalised)
-        {
-            Logger.LogDebug(
-                "LanguageAwareImages Episode: '{Title}' is in sync at S{S}E{E} (show {ShowId}), deferring to built-in provider",
-                episode.Name, season, epNum, showId);
-            return Array.Empty<RemoteImageInfo>();
-        }
-
-        // Mismatch (or position unknown), library uses an alternative order.
         // Look up the still by title. Build a list of candidate titles, the
         // full title first and then each "/"-separated component, to cover
         // combined-episode shows like SpongeBob altdvd where one library
@@ -125,7 +109,7 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             : (!string.IsNullOrEmpty(Config.FallbackLanguage) ? Config.FallbackLanguage : null);
 
         Logger.LogInformation(
-            "LanguageAwareImages Episode: alt-order match '{Title}' (matched candidate '{Candidate}') at S{S}E{E} (show {ShowId}, lang {Lang}) -> {Path}",
+            "LanguageAwareImages Episode: title match '{Title}' (matched candidate '{Candidate}') at S{S}E{E} (show {ShowId}, lang {Lang}) -> {Path}",
             episode.Name,
             matchedTitle,
             episode.ParentIndexNumber,
@@ -161,11 +145,10 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             .ConfigureAwait(false);
 
         var titleToStill = new Dictionary<string, string>(StringComparer.Ordinal);
-        var positionToTitle = new Dictionary<(int, int), string>();
 
         if (show?.Seasons is null)
         {
-            var empty = new ShowEpisodeData(titleToStill, positionToTitle);
+            var empty = new ShowEpisodeData(titleToStill);
             ShowCache[cacheKey] = empty;
             return empty;
         }
@@ -185,30 +168,25 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
 
             foreach (var ep in season.Episodes)
             {
-                if (string.IsNullOrWhiteSpace(ep.Name))
+                if (string.IsNullOrWhiteSpace(ep.Name) || string.IsNullOrWhiteSpace(ep.StillPath))
                 {
                     continue;
                 }
 
                 var key = NormaliseTitle(ep.Name);
 
-                positionToTitle[(ep.SeasonNumber, (int)ep.EpisodeNumber)] = key;
-
-                if (!string.IsNullOrWhiteSpace(ep.StillPath))
-                {
-                    // First match wins, duplicate titles within a show are rare
-                    // (recap/clip episodes mostly), and the first occurrence is
-                    // usually the canonical one.
-                    titleToStill.TryAdd(key, ep.StillPath);
-                }
+                // First match wins, duplicate titles within a show are rare
+                // (recap/clip episodes mostly), and the first occurrence is
+                // usually the canonical one.
+                titleToStill.TryAdd(key, ep.StillPath);
             }
         }
 
         Logger.LogDebug(
-            "LanguageAwareImages Episode: built data for show {ShowId} ({Lang}): {TitleCount} titles, {PosCount} positions",
-            showId, language, titleToStill.Count, positionToTitle.Count);
+            "LanguageAwareImages Episode: built data for show {ShowId} ({Lang}): {TitleCount} titles",
+            showId, language, titleToStill.Count);
 
-        var data = new ShowEpisodeData(titleToStill, positionToTitle);
+        var data = new ShowEpisodeData(titleToStill);
         ShowCache[cacheKey] = data;
         return data;
     }
