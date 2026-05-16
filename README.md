@@ -104,6 +104,12 @@ the first half's still is returned for the combined entry. If no candidate
 matches at all the plugin returns nothing and the built-in provider takes
 over, no regression.
 
+## Support
+
+If this plugin saves you time and you'd like to say thanks, there's a [Ko-fi](https://ko-fi.com/superuser404).
+
+<a href="https://ko-fi.com/superuser404"><img src="https://img.shields.io/badge/Ko--fi-Support-FF5E5B?logo=kofi&logoColor=white"></a>
+
 ## License
 
 GPL-3.0 (the plugin links against Jellyfin's GPL assemblies).
