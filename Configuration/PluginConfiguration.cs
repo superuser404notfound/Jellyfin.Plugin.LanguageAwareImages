@@ -4,12 +4,14 @@ namespace Jellyfin.Plugin.LanguageAwareImages.Configuration;
 
 public class PluginConfiguration : BasePluginConfiguration
 {
-    // Empty (the default) means: pick up the language from the item's
-    // library / parent metadata settings via BaseItem.GetPreferredMetadataLanguage().
-    // Set to a 2-letter ISO 639-1 code to force a specific language regardless
-    // of library settings.
+    // Comma-separated, ordered priority list of ISO 639-1 codes, regional
+    // variants allowed (e.g. "pt-br,pt,pt-pt"). A single code still works.
+    // Empty (default) means: auto-derive from the item's library metadata
+    // language, expanding a regional value (pt-BR -> [pt-br, pt]) before fallback.
     public string PreferredLanguageOverride { get; set; } = string.Empty;
 
+    // Comma-separated fallback list, used when no preferred-language image exists
+    // (e.g. "en" or "en,fr").
     public string FallbackLanguage { get; set; } = "en";
 
     // Per-image-type textless toggles. Logos are almost always designed without

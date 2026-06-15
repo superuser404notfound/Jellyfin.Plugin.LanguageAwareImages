@@ -23,18 +23,19 @@
 
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="PreferredLanguageOverride">Preferred language override (ISO 639-1)</label>
-                        <input is="emby-input" type="text" id="PreferredLanguageOverride" maxlength="2" />
+                        <input is="emby-input" type="text" id="PreferredLanguageOverride" />
                         <div class="fieldDescription">
-                            Leave empty (recommended) to use each library's metadata language.
-                            Set a 2-letter code like <code>de</code> or <code>fr</code> to force
-                            that language for every library, ignoring per-library settings.
+                            Leave empty (recommended) to use each library's metadata language,
+                            auto-expanding a regional value (<code>pt-BR</code> &rarr;
+                            <code>pt-br, pt</code>). Or set an ordered, comma-separated priority
+                            list like <code>pt-br,pt,pt-pt</code> to force it for every library.
                         </div>
                     </div>
 
                     <div class="inputContainer">
                         <label class="inputLabel inputLabelUnfocused" for="FallbackLanguage">Fallback language (ISO 639-1)</label>
-                        <input is="emby-input" type="text" id="FallbackLanguage" required maxlength="2" />
-                        <div class="fieldDescription">Used when no image in the preferred language exists.</div>
+                        <input is="emby-input" type="text" id="FallbackLanguage" required />
+                        <div class="fieldDescription">Used when no preferred-language image exists. Comma-separated, e.g. <code>en</code> or <code>en,fr</code>.</div>
                     </div>
 
                     <div class="checkboxContainer checkboxContainer-withDescription">
