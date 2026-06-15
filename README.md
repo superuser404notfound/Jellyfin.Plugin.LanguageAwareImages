@@ -32,8 +32,8 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 
 | Field                            | Default | Notes                                                                          |
 | -------------------------------- | :-----: | ------------------------------------------------------------------------------ |
-| `PreferredLanguageOverride`      | empty   | Empty = use each library's metadata language. Set e.g. `de` to force globally. |
-| `FallbackLanguage`               |  `en`   | Used when no image in the preferred language exists.                           |
+| `PreferredLanguageOverride`      | empty   | Empty = each library's language (a regional value like `pt-BR` auto-expands to `pt-br,pt`). Or an ordered list e.g. `pt-br,pt,pt-pt`. |
+| `FallbackLanguage`               |  `en`   | Comma-separated fallback list, e.g. `en` or `en,fr`. Used when no preferred-language image exists.                        |
 | `IncludeOriginalLanguage`        | `false` | Add the title's original language as a third bucket (e.g. Japanese for anime). |
 | `OnlyOriginalLanguageForPosters` | `false` | Strict mode: posters only in original language, drops all other buckets. Backdrops/logos unaffected. |
 | `IncludeNoLanguageForPosters`    | `false` | Allow textless posters as last resort.                                         |
@@ -74,6 +74,13 @@ This plugin enforces a clean cascade:
 Within each bucket, images are sorted by `vote_count DESC, vote_average DESC`,
 the same order TMDB's `/images` UI uses, so you get the most popular image
 in the matching language rather than a random one.
+
+**Regional variants.** TMDB tags some posters by region (`pt-BR` vs `pt-PT`)
+but only exposes the region through its image-language *filter*, not the
+response. The plugin therefore issues one TMDB call per regional code in your
+cascade and merges by image, so a Brazilian library gets the `pt-br` poster
+rather than the `pt` (Portugal) one. Plain 2-letter cascades keep the original
+single-call behaviour.
 
 ### Episode images for shows with alternative orderings
 

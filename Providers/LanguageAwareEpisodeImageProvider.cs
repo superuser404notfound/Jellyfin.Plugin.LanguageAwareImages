@@ -60,10 +60,12 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             return Array.Empty<RemoteImageInfo>();
         }
 
-        var preferredLanguage = GetEffectivePreferredLanguage(item);
-        var apiLanguage = string.IsNullOrEmpty(preferredLanguage)
-            ? Config.FallbackLanguage
+        var preferred = GetPreferredLanguages(item);
+        var preferredLanguage = preferred.Count > 0 ? preferred[0] : string.Empty;
+        var apiLanguageRaw = string.IsNullOrEmpty(preferredLanguage)
+            ? (GetFallbackLanguages().FirstOrDefault() ?? string.Empty)
             : preferredLanguage;
+        var apiLanguage = LanguageMatching.ToTmdbLanguage(apiLanguageRaw);
 
         var data = await GetOrBuildShowData(showId, apiLanguage, cancellationToken).ConfigureAwait(false);
 
@@ -105,8 +107,8 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
         // Jellyfin's pipeline arithmetic. If we have neither preferred nor
         // fallback configured, leave it null (still survives the filter).
         var imageLanguage = !string.IsNullOrEmpty(preferredLanguage)
-            ? preferredLanguage
-            : (!string.IsNullOrEmpty(Config.FallbackLanguage) ? Config.FallbackLanguage : null);
+            ? GetPreferredTag(item)
+            : (GetFallbackLanguages().FirstOrDefault());
 
         Logger.LogInformation(
             "LanguageAwareImages Episode: title match '{Title}' (matched candidate '{Candidate}') at S{S}E{E} (show {ShowId}, lang {Lang}) -> {Path}",

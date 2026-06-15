@@ -34,14 +34,12 @@ public class LanguageAwareMovieImageProvider : LanguageAwareImageProviderBase, I
             return Array.Empty<RemoteImageInfo>();
         }
 
-        var preferredLanguage = GetEffectivePreferredLanguage(item);
-        var apiLanguage = string.IsNullOrEmpty(preferredLanguage)
-            ? Config.FallbackLanguage
-            : preferredLanguage;
+        var preferred = GetPreferredLanguages(item);
+        var apiLanguage = LanguageMatching.ToTmdbLanguage(
+            preferred.Count > 0 ? preferred[0] : (GetFallbackLanguages().FirstOrDefault() ?? string.Empty));
 
         var client = GetClient();
 
-        // Fetch original_language only when a feature needs it, saves an API call.
         var originalLanguage = string.Empty;
         if (NeedsOriginalLanguage())
         {
@@ -50,21 +48,17 @@ public class LanguageAwareMovieImageProvider : LanguageAwareImageProviderBase, I
             originalLanguage = NormaliseLanguage(movie?.OriginalLanguage);
         }
 
-        var images = await client.GetMovieImagesAsync(
-            tmdbId,
-            language: apiLanguage,
-            includeImageLanguage: BuildIncludeLanguageParam(preferredLanguage, originalLanguage),
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        if (images is null)
-        {
-            return Array.Empty<RemoteImageInfo>();
-        }
-
-        var result = new List<RemoteImageInfo>();
-        result.AddRange(RankAndMap(images.Posters, ImageType.Primary, preferredLanguage, originalLanguage));
-        result.AddRange(RankAndMap(images.Backdrops, ImageType.Backdrop, preferredLanguage, originalLanguage));
-        result.AddRange(RankAndMap(images.Logos, ImageType.Logo, preferredLanguage, originalLanguage));
-        return result;
+        return await FetchRankMapAsync(
+            item,
+            new[] { ImageType.Primary, ImageType.Backdrop, ImageType.Logo },
+            originalLanguage,
+            async (include, ct) =>
+            {
+                var images = await client.GetMovieImagesAsync(
+                    tmdbId, language: apiLanguage, includeImageLanguage: include, cancellationToken: ct)
+                    .ConfigureAwait(false);
+                return new MultiImages(images?.Posters, images?.Backdrops, images?.Logos);
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 }

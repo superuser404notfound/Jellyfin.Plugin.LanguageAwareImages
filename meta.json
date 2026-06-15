@@ -7,7 +7,7 @@
   "overview": "Drop-in replacement for the built-in TMDB image provider. Enforces a clean cascade: library language → English → (optional) textless. Within each bucket images are sorted by vote_count DESC like TMDB's own /images UI. Fixes jellyfin/jellyfin#9878 (built-in prefers textless over English fallback).",
   "targetAbi": "10.10.0.0",
   "framework": "net8.0",
-  "version": "0.7.4.0",
-  "changelog": "Episode title-match now runs for every episode, not just out-of-sync ones. The previous 'smart mode' returned empty for episodes whose title matched TMDB's position, deferring to the built-in provider. That made the language-aware entry disappear from the image picker for the common in-sync case. Now the plugin always returns the title-matched still tagged with the preferred language, so it ranks above the built-in's positional still in Jellyfin's image sort regardless of whether the library is in sync.",
+  "version": "0.8.0.0",
+  "changelog": "Regional ISO 639 variants and ordered language cascades. Preferred/fallback are now comma-separated ordered lists (e.g. pt-br,pt,pt-pt), regional variants supported. A regional library language (pt-BR) auto-expands to pt-br,pt. Posters/backdrops/logos in a regional variant are matched via per-region TMDB filter calls; episode titles are looked up in the regional locale. Fixes #2.",
   "imagePath": ""
 }
