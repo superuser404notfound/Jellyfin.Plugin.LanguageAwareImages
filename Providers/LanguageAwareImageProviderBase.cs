@@ -97,32 +97,37 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         }
     }
 
-    // Resolves the effective preferred language for a given item:
-    // 1. If the user set a global PreferredLanguageOverride, that wins.
-    // 2. Otherwise, ask the item what its library/parent language is.
-    // 3. Normalise to a 2-letter ISO 639-1 code (Jellyfin sometimes returns
-    //    "en-US" style; TMDB filters expect plain "en").
-    // Returns empty string if nothing is configured anywhere.
-    protected static string GetEffectivePreferredLanguage(BaseItem item)
+    // Ordered preferred-language cascade for an item:
+    // 1. If PreferredLanguageOverride is set, parse it as a comma list.
+    // 2. Otherwise auto-expand the item's library language (pt-BR -> [pt-br, pt]).
+    protected static List<string> GetPreferredLanguages(BaseItem item)
     {
-        var lang = !string.IsNullOrWhiteSpace(Config.PreferredLanguageOverride)
-            ? Config.PreferredLanguageOverride
-            : item.GetPreferredMetadataLanguage();
-
-        return NormaliseLanguage(lang);
+        var overrideList = LanguageMatching.ParseList(Config.PreferredLanguageOverride);
+        return overrideList.Count > 0
+            ? overrideList
+            : LanguageMatching.ExpandLibraryLanguage(item.GetPreferredMetadataLanguage());
     }
 
-    protected static string NormaliseLanguage(string? lang)
+    protected static List<string> GetFallbackLanguages()
+        => LanguageMatching.ParseList(Config.FallbackLanguage);
+
+    // The exact string Jellyfin treats as the item's preferred language. Used to
+    // tag our images so they survive Jellyfin's downstream {empty, preferred,
+    // fallback} filter. When an override is set we fall back to the first override
+    // code (best effort; Jellyfin still filters by the library language).
+    protected static string GetPreferredTag(BaseItem item)
     {
-        if (string.IsNullOrWhiteSpace(lang))
+        var overrideList = LanguageMatching.ParseList(Config.PreferredLanguageOverride);
+        if (overrideList.Count > 0)
         {
-            return string.Empty;
+            return overrideList[0];
         }
 
-        // "en-US" -> "en", "de-DE" -> "de"
-        var dash = lang.IndexOf('-');
-        return (dash > 0 ? lang[..dash] : lang).ToLowerInvariant();
+        var lib = item.GetPreferredMetadataLanguage();
+        return string.IsNullOrWhiteSpace(lib) ? string.Empty : lib;
     }
+
+    protected static string NormaliseLanguage(string? lang) => LanguageMatching.Normalise(lang);
 
     protected static bool IsTextlessAllowedFor(ImageType type) => type switch
     {
@@ -142,177 +147,166 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     protected static bool NeedsOriginalLanguage() =>
         Config.IncludeOriginalLanguage || Config.OnlyOriginalLanguageForPosters;
 
-    // TMDB's `include_image_language` accepts a comma list. The literal token
-    // "null" pulls textless images. Order in the list does not affect ranking;
-    // we apply our own bucket sort below.
-    protected static string BuildIncludeLanguageParam(string preferredLanguage, string originalLanguage)
+    // Posters/backdrops/logos from one images call. Season calls leave
+    // Backdrops/Logos null.
+    protected readonly record struct MultiImages(
+        IReadOnlyList<ImageData>? Posters,
+        IReadOnlyList<ImageData>? Backdrops,
+        IReadOnlyList<ImageData>? Logos);
+
+    private static IReadOnlyList<ImageData>? SelectType(MultiImages images, ImageType type) => type switch
     {
-        var parts = new List<string>();
-        if (!string.IsNullOrWhiteSpace(preferredLanguage))
-        {
-            parts.Add(preferredLanguage);
-        }
+        ImageType.Primary => images.Posters,
+        ImageType.Backdrop => images.Backdrops,
+        ImageType.Logo => images.Logos,
+        _ => null
+    };
 
-        if (NeedsOriginalLanguage() && !string.IsNullOrWhiteSpace(originalLanguage))
-        {
-            parts.Add(originalLanguage);
-        }
-
-        if (!string.IsNullOrWhiteSpace(Config.FallbackLanguage))
-        {
-            parts.Add(Config.FallbackLanguage);
-        }
-
-        if (AnyTextlessAllowed())
-        {
-            parts.Add("null");
-        }
-
-        return string.Join(",", parts.Distinct());
-    }
-
-    // Heart of the plugin: filter by language bucket + min vote count, then
-    // ORDER BY vote_count DESC, vote_average DESC, the same ordering TMDB's
-    // own /images UI uses.
-    //
-    // Bucket ranks:
-    //   0 - preferred language
-    //   1 - original language (only if IncludeOriginalLanguage and != preferred/fallback)
-    //   2 - fallback language
-    //   3 - textless (null), only if allowed for this image type
-    //  99 - excluded
-    protected IEnumerable<RemoteImageInfo> RankAndMap(
-        IEnumerable<ImageData>? images,
-        ImageType type,
-        string preferredLanguage,
-        string originalLanguage)
+    // Drives the include_image_language calls (one collective call for simple
+    // codes + null, plus one per regional code) and returns ranked, tagged
+    // RemoteImageInfos for each requested image type.
+    protected async Task<List<RemoteImageInfo>> FetchRankMapAsync(
+        BaseItem item,
+        ImageType[] types,
+        string originalLanguage,
+        Func<string, CancellationToken, Task<MultiImages>> fetch,
+        CancellationToken cancellationToken)
     {
-        if (images is null)
-        {
-            return Array.Empty<RemoteImageInfo>();
-        }
-
-        var fallback = Config.FallbackLanguage;
-        var includeTextless = IsTextlessAllowedFor(type);
-        var includeOriginal = Config.IncludeOriginalLanguage
-            && !string.IsNullOrEmpty(originalLanguage)
-            && !string.Equals(originalLanguage, preferredLanguage, StringComparison.OrdinalIgnoreCase)
-            && !string.Equals(originalLanguage, fallback, StringComparison.OrdinalIgnoreCase);
+        var preferred = GetPreferredLanguages(item);
+        var fallback = GetFallbackLanguages();
+        var tag = GetPreferredTag(item);
         var minVotes = Math.Max(0, Config.MinimumVoteCount);
 
-        // Strict mode: for posters only, when OnlyOriginalLanguageForPosters
-        // is on, drop everything that isn't in the title's original language.
-        // Returns nothing if original_language is unknown so the built-in
-        // provider can take over.
-        var strictOriginalForPosters = type == ImageType.Primary
-            && Config.OnlyOriginalLanguageForPosters;
-        if (strictOriginalForPosters && string.IsNullOrEmpty(originalLanguage))
+        var normalBuckets = LanguageMatching.BuildOrderedBuckets(
+            preferred, originalLanguage, Config.IncludeOriginalLanguage, fallback);
+
+        // Per-type bucket lists. Posters honour the strict original-only mode.
+        List<string> BucketsForType(ImageType type)
         {
-            return Array.Empty<RemoteImageInfo>();
+            if (type == ImageType.Primary && Config.OnlyOriginalLanguageForPosters)
+            {
+                var orig = LanguageMatching.Normalise(originalLanguage);
+                return string.IsNullOrEmpty(orig) ? new List<string>() : new List<string> { orig };
+            }
+
+            return normalBuckets;
         }
 
-        int Rank(string? iso)
+        // Union of every code any type needs -> drives which calls we make.
+        var allCodes = new List<string>();
+        foreach (var type in types)
         {
-            if (strictOriginalForPosters)
+            foreach (var c in BucketsForType(type))
             {
-                return string.Equals(iso, originalLanguage, StringComparison.OrdinalIgnoreCase)
-                    ? 0
-                    : 99;
+                if (!allCodes.Contains(c))
+                {
+                    allCodes.Add(c);
+                }
             }
-
-            if (!string.IsNullOrEmpty(preferredLanguage)
-                && string.Equals(iso, preferredLanguage, StringComparison.OrdinalIgnoreCase))
-            {
-                return 0;
-            }
-
-            if (includeOriginal
-                && string.Equals(iso, originalLanguage, StringComparison.OrdinalIgnoreCase))
-            {
-                return 1;
-            }
-
-            if (!string.IsNullOrEmpty(fallback)
-                && string.Equals(iso, fallback, StringComparison.OrdinalIgnoreCase))
-            {
-                return 2;
-            }
-
-            if (string.IsNullOrEmpty(iso) && includeTextless)
-            {
-                return 3;
-            }
-
-            return 99;
         }
 
-        // CommunityRating is set null when SortByVotes is on, because Jellyfin's
-        // downstream OrderByLanguageDescending sorts by CommunityRating before
-        // VoteCount, so leaving rating in place would override our vote-count
-        // primary sort with a rating primary sort. With CommunityRating null,
-        // all entries tie at 0 and Jellyfin falls through to VoteCount.
-        var sortByVotes = Config.SortByVotes;
-
-        var ranked = images
-            .Where(i => i.VoteCount >= minVotes)
-            .Where(i => Rank(i.Iso_639_1) < 99)
-            .OrderBy(i => Rank(i.Iso_639_1))
-            .ThenByDescending(i => i.VoteCount)
-            .ThenByDescending(i => i.VoteAverage)
-            .Select(i => new RemoteImageInfo
-            {
-                ProviderName = Name,
-                Type = type,
-                Url = BuildImageUrl(type, i.FilePath),
-                Width = i.Width,
-                Height = i.Height,
-                Language = DisguiseLanguage(i.Iso_639_1, preferredLanguage, fallback),
-                CommunityRating = sortByVotes ? null : i.VoteAverage,
-                VoteCount = i.VoteCount,
-                RatingType = RatingType.Score
-            })
-            .ToList();
-
-        if (Logger.IsEnabled(LogLevel.Debug) && ranked.Count > 0)
+        if (allCodes.Count == 0)
         {
-            var top = ranked[0];
+            return new List<RemoteImageInfo>();
+        }
+
+        var simpleCodes = allCodes.Where(c => !LanguageMatching.IsRegional(c)).ToList();
+        var regionalCodes = allCodes.Where(LanguageMatching.IsRegional).ToList();
+        var anyTextless = AnyTextlessAllowed();
+
+        var calls = new List<(string Code, MultiImages Images)>();
+
+        // Collective call: simple codes + textless. Skip if nothing simple and no
+        // textless wanted.
+        var collectiveParts = new List<string>(simpleCodes);
+        if (anyTextless)
+        {
+            collectiveParts.Add("null");
+        }
+
+        if (collectiveParts.Count > 0)
+        {
+            var images = await fetch(string.Join(",", collectiveParts), cancellationToken).ConfigureAwait(false);
+            calls.Add((string.Empty, images));
+        }
+
+        // One call per regional code (sent in canonical pt-BR form).
+        foreach (var rc in regionalCodes)
+        {
+            var images = await fetch(LanguageMatching.ToTmdbLanguage(rc), cancellationToken).ConfigureAwait(false);
+            calls.Add((rc, images));
+        }
+
+        var result = new List<RemoteImageInfo>();
+        foreach (var type in types)
+        {
+            var buckets = BucketsForType(type);
+            if (buckets.Count == 0)
+            {
+                continue;
+            }
+
+            var textlessRank = IsTextlessAllowedFor(type) ? buckets.Count : int.MaxValue;
+            var typeCalls = calls.Select(c => (c.Code, SelectType(c.Images, type)));
+            var ranked = LanguageMatching.MergeAndRank(typeCalls, buckets, textlessRank, minVotes);
+
+            foreach (var r in ranked)
+            {
+                result.Add(BuildRemoteImageInfo(type, r, buckets, tag, fallback));
+            }
+        }
+
+        if (Logger.IsEnabled(LogLevel.Debug) && result.Count > 0)
+        {
             Logger.LogDebug(
-                "LanguageAwareImages: {Type} -> {Count} candidates, top lang={Lang} votes={Votes} url={Url}",
-                type, ranked.Count, top.Language ?? "null", top.VoteCount, top.Url);
+                "LanguageAwareImages: {Count} images, top lang={Lang} url={Url}",
+                result.Count, result[0].Language ?? "null", result[0].Url);
         }
 
-        return ranked;
+        return result;
     }
 
-    // Jellyfin's ProviderManager filters the returned RemoteImageInfo list down
-    // to {empty | preferred | "en"} unless the UI's "All languages" toggle is
-    // set, then sorts what's left with OrderByLanguageDescending(preferred),
-    // which puts preferred first and English second. Both behaviors hide the
-    // original-language bucket we worked to fetch (e.g. Japanese posters for
-    // an anime in a German library).
-    //
-    // Workaround: for any image whose iso is neither preferred nor fallback
-    // nor empty (i.e. it's an original-language entry), tag it with the
-    // preferred code. The image survives the filter and lands in Jellyfin's
-    // "preferred" sort bucket alongside real preferred matches; LINQ's stable
-    // sort preserves our internal preferred → original → fallback order.
-    //
-    // Tradeoff: the UI labels a Japanese poster as "DE". Functionally right,
-    // cosmetically white-lied.
-    private static string? DisguiseLanguage(string? iso, string preferred, string fallback)
+    // Maps a ranked image to a RemoteImageInfo, tagging it so it survives
+    // Jellyfin's downstream language filter. Fallback-language images keep their
+    // own iso; textless stays null; everything else (preferred/original/regional,
+    // whose iso TMDB reports as the bare code) is tagged with the preferred tag.
+    private RemoteImageInfo BuildRemoteImageInfo(
+        ImageType type,
+        LanguageMatching.RankedImage ranked,
+        IReadOnlyList<string> buckets,
+        string preferredTag,
+        IReadOnlyList<string> fallback)
     {
+        var img = ranked.Image;
+        var iso = LanguageMatching.Normalise(img.Iso_639_1);
+
+        string? language;
         if (string.IsNullOrEmpty(iso))
         {
-            return null;
+            language = null;
         }
-
-        if (string.Equals(iso, preferred, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(iso, fallback, StringComparison.OrdinalIgnoreCase))
+        else if (fallback.Contains(iso))
         {
-            return iso;
+            language = iso;
+        }
+        else
+        {
+            language = string.IsNullOrEmpty(preferredTag) ? iso : preferredTag;
         }
 
-        return string.IsNullOrEmpty(preferred) ? iso : preferred;
+        var sortByVotes = Config.SortByVotes;
+        return new RemoteImageInfo
+        {
+            ProviderName = Name,
+            Type = type,
+            Url = BuildImageUrl(type, img.FilePath),
+            Width = img.Width,
+            Height = img.Height,
+            Language = language,
+            CommunityRating = sortByVotes ? null : img.VoteAverage,
+            VoteCount = img.VoteCount,
+            RatingType = RatingType.Score
+        };
     }
 
     public Task<HttpResponseMessage> GetImageResponse(string url, CancellationToken cancellationToken)
