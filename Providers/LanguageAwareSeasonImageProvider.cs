@@ -38,14 +38,12 @@ public class LanguageAwareSeasonImageProvider : LanguageAwareImageProviderBase, 
             return Array.Empty<RemoteImageInfo>();
         }
 
-        var preferredLanguage = GetEffectivePreferredLanguage(item);
-        var apiLanguage = string.IsNullOrEmpty(preferredLanguage)
-            ? Config.FallbackLanguage
-            : preferredLanguage;
+        var preferred = GetPreferredLanguages(item);
+        var apiLanguage = LanguageMatching.ToTmdbLanguage(
+            preferred.Count > 0 ? preferred[0] : (GetFallbackLanguages().FirstOrDefault() ?? string.Empty));
 
         var client = GetClient();
 
-        // Seasons inherit original_language from the parent show.
         var originalLanguage = string.Empty;
         if (NeedsOriginalLanguage())
         {
@@ -54,15 +52,18 @@ public class LanguageAwareSeasonImageProvider : LanguageAwareImageProviderBase, 
             originalLanguage = NormaliseLanguage(show?.OriginalLanguage);
         }
 
-        var images = await client.GetTvSeasonImagesAsync(
-            seriesTmdbId,
-            season.IndexNumber.Value,
-            language: apiLanguage,
-            includeImageLanguage: BuildIncludeLanguageParam(preferredLanguage, originalLanguage),
-            cancellationToken: cancellationToken).ConfigureAwait(false);
-
-        return images is null
-            ? Array.Empty<RemoteImageInfo>()
-            : RankAndMap(images.Posters, ImageType.Primary, preferredLanguage, originalLanguage);
+        return await FetchRankMapAsync(
+            item,
+            new[] { ImageType.Primary },
+            originalLanguage,
+            async (include, ct) =>
+            {
+                var images = await client.GetTvSeasonImagesAsync(
+                    seriesTmdbId, season.IndexNumber.Value,
+                    language: apiLanguage, includeImageLanguage: include, cancellationToken: ct)
+                    .ConfigureAwait(false);
+                return new MultiImages(images?.Posters, null, null);
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 }
