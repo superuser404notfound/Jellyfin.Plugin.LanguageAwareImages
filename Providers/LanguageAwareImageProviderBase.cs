@@ -252,7 +252,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
 
             foreach (var r in ranked)
             {
-                result.Add(BuildRemoteImageInfo(type, r, buckets, tag, fallback));
+                result.Add(BuildRemoteImageInfo(type, r, tag, fallback));
             }
         }
 
@@ -273,7 +273,6 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     private RemoteImageInfo BuildRemoteImageInfo(
         ImageType type,
         LanguageMatching.RankedImage ranked,
-        IReadOnlyList<string> buckets,
         string preferredTag,
         IReadOnlyList<string> fallback)
     {
