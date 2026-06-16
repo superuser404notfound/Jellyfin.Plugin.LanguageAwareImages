@@ -44,10 +44,24 @@
                             <span>Also include the title's original language</span>
                         </label>
                         <div class="fieldDescription checkboxFieldDescription">
-                            Adds a third bucket between preferred and fallback. Useful for
+                            Adds the title's original language as an extra bucket. Useful for
                             anime / foreign-cinema fans: a German user can see the Japanese
                             poster for <i>Princess Mononoke</i> instead of the US export.
                             Costs one extra API call per item.
+                        </div>
+                    </div>
+
+                    <div class="checkboxContainer checkboxContainer-withDescription">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="OriginalLanguageLast" />
+                            <span>Put the original language last</span>
+                        </label>
+                        <div class="fieldDescription checkboxFieldDescription">
+                            On (default): the original-language bucket sits after the fallback
+                            languages, so a title shows under its international name first and
+                            the original (e.g. Japanese or Korean) artwork only as a last
+                            resort. Off: between preferred and fallback. Only applies when
+                            "Also include the title's original language" is on.
                         </div>
                     </div>
 
@@ -224,6 +238,7 @@
                         document.querySelector('#PreferredLanguageOverride').value = config.PreferredLanguageOverride || '';
                         document.querySelector('#FallbackLanguage').value = config.FallbackLanguage || 'en';
                         document.querySelector('#IncludeOriginalLanguage').checked = !!config.IncludeOriginalLanguage;
+                        document.querySelector('#OriginalLanguageLast').checked = config.OriginalLanguageLast !== false;
                         document.querySelector('#OnlyOriginalLanguageForPosters').checked = !!config.OnlyOriginalLanguageForPosters;
                         document.querySelector('#IncludeNoLanguageForPosters').checked = !!config.IncludeNoLanguageForPosters;
                         document.querySelector('#IncludeNoLanguageForBackdrops').checked = config.IncludeNoLanguageForBackdrops !== false;
@@ -248,6 +263,7 @@
                         config.PreferredLanguageOverride = document.querySelector('#PreferredLanguageOverride').value.trim().toLowerCase();
                         config.FallbackLanguage = document.querySelector('#FallbackLanguage').value.trim().toLowerCase();
                         config.IncludeOriginalLanguage = document.querySelector('#IncludeOriginalLanguage').checked;
+                        config.OriginalLanguageLast = document.querySelector('#OriginalLanguageLast').checked;
                         config.OnlyOriginalLanguageForPosters = document.querySelector('#OnlyOriginalLanguageForPosters').checked;
                         config.IncludeNoLanguageForPosters = document.querySelector('#IncludeNoLanguageForPosters').checked;
                         config.IncludeNoLanguageForBackdrops = document.querySelector('#IncludeNoLanguageForBackdrops').checked;

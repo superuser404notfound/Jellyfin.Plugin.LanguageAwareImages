@@ -77,11 +77,14 @@ public static class LanguageMatching
     }
 
     // Ordered language buckets; the index of a code is its rank.
-    // preferred... , (original if opted in and not already present), fallback...
+    // preferred..., then the original language either before the fallback
+    // (originalLast == false) or after it (originalLast == true, dead-last),
+    // then fallback... Codes already present earlier keep their first rank.
     public static List<string> BuildOrderedBuckets(
         IReadOnlyList<string> preferred,
         string originalLanguage,
         bool includeOriginal,
+        bool originalLast,
         IReadOnlyList<string> fallback)
     {
         var buckets = new List<string>();
@@ -99,7 +102,7 @@ public static class LanguageMatching
             Add(p);
         }
 
-        if (includeOriginal)
+        if (includeOriginal && !originalLast)
         {
             Add(Normalise(originalLanguage));
         }
@@ -107,6 +110,11 @@ public static class LanguageMatching
         foreach (var f in fallback)
         {
             Add(f);
+        }
+
+        if (includeOriginal && originalLast)
+        {
+            Add(Normalise(originalLanguage));
         }
 
         return buckets;

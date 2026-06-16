@@ -24,10 +24,18 @@ public class PluginConfiguration : BasePluginConfiguration
     public bool IncludeNoLanguageForLogos { get; set; } = true;
 
     // When on, the movie/show's original_language is treated as a separate
-    // bucket between preferred and fallback. Useful for foreign-cinema /
-    // anime libraries: a German user can still see the Japanese poster for
-    // Princess Mononoke instead of being forced to the US-marketing version.
+    // bucket. Useful for foreign-cinema / anime libraries: a German user can
+    // still see the Japanese poster for Princess Mononoke instead of being
+    // forced to the US-marketing version. Its position is controlled by
+    // OriginalLanguageLast.
     public bool IncludeOriginalLanguage { get; set; } = false;
+
+    // Where the original-language bucket sits when IncludeOriginalLanguage is on.
+    // true (default): after the fallback languages (dead-last), so a title is
+    // shown under its international name first and the original (e.g. Japanese
+    // or Korean) artwork only when nothing else matches. false: between
+    // preferred and fallback.
+    public bool OriginalLanguageLast { get; set; } = true;
 
     // Strict mode for posters (Primary image type): keep ONLY images in the
     // title's original_language, drop preferred / fallback / textless entries.
@@ -44,15 +52,17 @@ public class PluginConfiguration : BasePluginConfiguration
     // aggressively trim unvalidated uploads.
     public int MinimumVoteCount { get; set; } = 0;
 
-    // Sort within each language bucket by vote_count (true) or vote_average
-    // (false). Defaults to true, that's the order TMDB's own /images UI uses,
-    // and the whole point of this plugin.
+    // Tiebreak within each language bucket by vote_count (true) or vote_average
+    // (false). Defaults to true, that's the order TMDB's own /images UI uses.
+    // The bucket order itself is always enforced first (see BuildRemoteImageInfo);
+    // this only decides how images that share a bucket are ordered.
     //
-    // Implementation note: Jellyfin's downstream OrderByLanguageDescending
-    // re-sorts our list by CommunityRating BEFORE VoteCount, so we have to
-    // suppress CommunityRating (set null) to get the vote-count primary sort
-    // we want. When false, CommunityRating is set to vote_average and
-    // Jellyfin's default rating-first sort applies.
+    // Implementation note: Jellyfin's downstream OrderByLanguageDescending sorts
+    // by CommunityRating BEFORE VoteCount. We encode the bucket rank into the
+    // integer part of CommunityRating either way; when this is true the rank is
+    // the only signal we put there, so Jellyfin's VoteCount tiebreak orders
+    // within a bucket. When false we add vote_average/100 on top of the rank so
+    // the within-bucket order is by rating.
     public bool SortByVotes { get; set; } = true;
 
     public string TmdbApiKey { get; set; } = string.Empty;

@@ -111,21 +111,16 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     protected static List<string> GetFallbackLanguages()
         => LanguageMatching.ParseList(Config.FallbackLanguage);
 
-    // The exact string Jellyfin treats as the item's preferred language. Used to
-    // tag our images so they survive Jellyfin's downstream {empty, preferred,
-    // fallback} filter. When an override is set we fall back to the first override
-    // code (best effort; Jellyfin still filters by the library language).
-    protected static string GetPreferredTag(BaseItem item)
-    {
-        var overrideList = LanguageMatching.ParseList(Config.PreferredLanguageOverride);
-        if (overrideList.Count > 0)
-        {
-            return overrideList[0];
-        }
-
-        var lib = item.GetPreferredMetadataLanguage();
-        return string.IsNullOrWhiteSpace(lib) ? string.Empty : lib;
-    }
+    // The library's metadata language, the ONLY tag Jellyfin's downstream filter
+    // accepts besides {empty, "en"}: GetImages keeps images whose Language is
+    // empty, == GetPreferredMetadataLanguage(), or "en", then sorts by that same
+    // language. We tag every image we want to keep with this so it survives the
+    // filter and lands in the top language-score tier, regardless of any
+    // PreferredLanguageOverride (the override only drives which TMDB images we
+    // *request*, never what Jellyfin filters by). Empty when the library has no
+    // metadata language, in which case Jellyfin skips the filter entirely.
+    protected static string GetLibraryLanguageTag(BaseItem item)
+        => NormaliseLanguage(item.GetPreferredMetadataLanguage());
 
     protected static string NormaliseLanguage(string? lang) => LanguageMatching.Normalise(lang);
 
@@ -174,11 +169,12 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
     {
         var preferred = GetPreferredLanguages(item);
         var fallback = GetFallbackLanguages();
-        var tag = GetPreferredTag(item);
+        var tag = GetLibraryLanguageTag(item);
         var minVotes = Math.Max(0, Config.MinimumVoteCount);
 
         var normalBuckets = LanguageMatching.BuildOrderedBuckets(
-            preferred, originalLanguage, Config.IncludeOriginalLanguage, fallback);
+            preferred, originalLanguage, Config.IncludeOriginalLanguage,
+            Config.OriginalLanguageLast, fallback);
 
         // Per-type bucket lists. Posters honour the strict original-only mode.
         List<string> BucketsForType(ImageType type)
@@ -252,7 +248,7 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
 
             foreach (var r in ranked)
             {
-                result.Add(BuildRemoteImageInfo(type, r, tag, fallback));
+                result.Add(BuildRemoteImageInfo(type, r, tag, buckets.Count));
             }
         }
 
@@ -266,34 +262,38 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         return result;
     }
 
-    // Maps a ranked image to a RemoteImageInfo, tagging it so it survives
-    // Jellyfin's downstream language filter. Fallback-language images keep their
-    // own iso; textless stays null; everything else (preferred/original/regional,
-    // whose iso TMDB reports as the bare code) is tagged with the preferred tag.
+    // Maps a ranked image to a RemoteImageInfo, encoding our bucket order so it
+    // survives Jellyfin's downstream re-sort. Jellyfin's OrderByLanguageDescending
+    // sorts by language-score, THEN CommunityRating, THEN VoteCount, and its
+    // GetImages filter drops anything not tagged {empty, library-language, "en"}.
+    //
+    // So we tag every image with the library language (top tier, passes the
+    // filter) and bake the bucket rank into CommunityRating: a lower rank maps to
+    // a higher value, so rank 0 sorts above rank 1 above ... regardless of vote
+    // counts. Within a rank the value is identical, leaving Jellyfin's VoteCount
+    // tiebreak to order by popularity (SortByVotes on). With SortByVotes off we
+    // add a small vote_average term so the within-bucket order is by rating
+    // instead; that term is below the 0.1 granularity some Jellyfin builds round
+    // CommunityRating to, so it degrades cleanly back to the VoteCount tiebreak.
+    //
+    // Cost: the picker shows these synthetic ratings instead of TMDB's, and every
+    // image is labelled with the library language even when it is really a
+    // regional variant or the original language. Both are accepted trade-offs for
+    // exact ordering (see CLAUDE.md).
     private RemoteImageInfo BuildRemoteImageInfo(
         ImageType type,
         LanguageMatching.RankedImage ranked,
-        string preferredTag,
-        IReadOnlyList<string> fallback)
+        string libraryTag,
+        int maxRank)
     {
         var img = ranked.Image;
-        var iso = LanguageMatching.Normalise(img.Iso_639_1);
 
-        string? language;
-        if (string.IsNullOrEmpty(iso))
+        double rating = maxRank + 1 - ranked.Rank;
+        if (!Config.SortByVotes)
         {
-            language = null;
-        }
-        else if (fallback.Contains(iso))
-        {
-            language = iso;
-        }
-        else
-        {
-            language = string.IsNullOrEmpty(preferredTag) ? iso : preferredTag;
+            rating += Math.Clamp(img.VoteAverage, 0, 9.99) / 100.0;
         }
 
-        var sortByVotes = Config.SortByVotes;
         return new RemoteImageInfo
         {
             ProviderName = Name,
@@ -301,8 +301,8 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
             Url = BuildImageUrl(type, img.FilePath),
             Width = img.Width,
             Height = img.Height,
-            Language = language,
-            CommunityRating = sortByVotes ? null : img.VoteAverage,
+            Language = string.IsNullOrEmpty(libraryTag) ? null : libraryTag,
+            CommunityRating = rating,
             VoteCount = img.VoteCount,
             RatingType = RatingType.Score
         };

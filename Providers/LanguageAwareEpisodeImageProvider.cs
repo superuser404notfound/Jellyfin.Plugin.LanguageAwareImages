@@ -99,15 +99,16 @@ public class LanguageAwareEpisodeImageProvider : LanguageAwareImageProviderBase,
             return Array.Empty<RemoteImageInfo>();
         }
 
-        // Tag the still with the preferred language so it survives Jellyfin's
-        // downstream language filter (which allows {empty, preferred, fallback})
-        // AND ranks above the built-in provider's wrong-position still in
-        // OrderByLanguageDescending(preferred). Episode stills are
+        // Tag the still with the library's metadata language so it survives
+        // Jellyfin's downstream language filter (which allows {empty,
+        // library-language, "en"}) AND ranks above the built-in provider's
+        // wrong-position still in OrderByLanguageDescending. Episode stills are
         // language-agnostic images on TMDB; we only set Language here for
-        // Jellyfin's pipeline arithmetic. If we have neither preferred nor
-        // fallback configured, leave it null (still survives the filter).
-        var imageLanguage = !string.IsNullOrEmpty(preferredLanguage)
-            ? GetPreferredTag(item)
+        // Jellyfin's pipeline arithmetic. Falls back to the configured fallback
+        // language only when the library has no metadata language at all.
+        var libraryTag = GetLibraryLanguageTag(item);
+        var imageLanguage = !string.IsNullOrEmpty(libraryTag)
+            ? libraryTag
             : (GetFallbackLanguages().FirstOrDefault());
 
         Logger.LogInformation(

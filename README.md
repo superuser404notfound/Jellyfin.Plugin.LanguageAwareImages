@@ -34,7 +34,8 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | -------------------------------- | :-----: | ------------------------------------------------------------------------------ |
 | `PreferredLanguageOverride`      | empty   | Empty = each library's language (a regional value like `pt-BR` auto-expands to `pt-br,pt`). Or an ordered list e.g. `pt-br,pt,pt-pt`. |
 | `FallbackLanguage`               |  `en`   | Comma-separated fallback list, e.g. `en` or `en,fr`. Used when no preferred-language image exists.                        |
-| `IncludeOriginalLanguage`        | `false` | Add the title's original language as a third bucket (e.g. Japanese for anime). |
+| `IncludeOriginalLanguage`        | `false` | Add the title's original language as an extra bucket (e.g. Japanese for anime). |
+| `OriginalLanguageLast`           | `true`  | Original-language bucket goes after the fallback (dead-last) so international names win; off = between preferred and fallback. Only applies when `IncludeOriginalLanguage` is on. |
 | `OnlyOriginalLanguageForPosters` | `false` | Strict mode: posters only in original language, drops all other buckets. Backdrops/logos unaffected. |
 | `IncludeNoLanguageForPosters`    | `false` | Allow textless posters as last resort.                                         |
 | `IncludeNoLanguageForBackdrops`  | `true`  | Backdrops are usually language-agnostic anyway.                                |
@@ -48,9 +49,12 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `StillImageSize`                 | `original` | TMDB episode still size: w92, w185, w300, original.                       |
 | `TmdbApiKey`                     | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
 
-The bucket order (preferred, original (opt-in), fallback, textless (opt-in
-per type)) and a `vote_count DESC, vote_average DESC` sort within each bucket
-matches TMDB's own `/images` UI.
+The bucket order is preferred, fallback, then original (opt-in, dead-last by
+default, see `OriginalLanguageLast`), then textless (opt-in per type), with a
+`vote_count DESC` tiebreak within each bucket. The exact order is enforced
+through Jellyfin's own downstream image sort, so the picker shows synthetic
+ratings rather than TMDB's and labels every image with the library language
+even when it is really a regional variant or the original language.
 
 ## Why
 
