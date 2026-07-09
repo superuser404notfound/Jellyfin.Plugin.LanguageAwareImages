@@ -23,6 +23,18 @@ public class PluginConfiguration : BasePluginConfiguration
 
     public bool IncludeNoLanguageForLogos { get; set; } = true;
 
+    // When the matching IncludeNoLanguageFor* toggle is on, rank textless
+    // (no-language-tag) images at the very top of the bucket order (above the
+    // preferred language) instead of dead-last. Off (default) keeps textless as
+    // a last resort. Has no effect while the matching Include toggle is off,
+    // because textless is then never even requested from TMDB. Common use:
+    // clean backdrops/logos without burned-in text.
+    public bool PreferNoLanguageForPosters { get; set; } = false;
+
+    public bool PreferNoLanguageForBackdrops { get; set; } = false;
+
+    public bool PreferNoLanguageForLogos { get; set; } = false;
+
     // When on, the movie/show's original_language is treated as a separate
     // bucket. Useful for foreign-cinema / anime libraries: a German user can
     // still see the Japanese poster for Princess Mononoke instead of being
