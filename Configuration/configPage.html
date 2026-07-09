@@ -80,26 +80,48 @@
                 </div>
 
                 <div class="verticalSection">
-                    <h3 class="checkboxListLabel">Allow textless (no language tag) images</h3>
+                    <h3 class="checkboxListLabel">Textless (no language tag) images</h3>
                     <p style="margin-top: 0.5em">Per image type, since logos and backdrops usually
-                       work fine textless but posters generally don't.</p>
+                       work fine textless but posters generally don't. Enable "Prefer" to rank the
+                       textless version <em>above</em> titled art when one exists (only takes effect
+                       while "Allow" is on for that type).</p>
 
                     <div class="checkboxContainer">
                         <label>
                             <input is="emby-checkbox" type="checkbox" id="IncludeNoLanguageForPosters" />
-                            <span>Posters</span>
+                            <span>Allow textless posters</span>
                         </label>
                     </div>
+                    <div class="checkboxContainer" style="margin-left: 2.5em">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="PreferNoLanguageForPosters" />
+                            <span>Prefer textless posters over titled</span>
+                        </label>
+                    </div>
+
                     <div class="checkboxContainer">
                         <label>
                             <input is="emby-checkbox" type="checkbox" id="IncludeNoLanguageForBackdrops" />
-                            <span>Backdrops</span>
+                            <span>Allow textless backdrops</span>
                         </label>
                     </div>
+                    <div class="checkboxContainer" style="margin-left: 2.5em">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="PreferNoLanguageForBackdrops" />
+                            <span>Prefer textless backdrops over titled</span>
+                        </label>
+                    </div>
+
                     <div class="checkboxContainer">
                         <label>
                             <input is="emby-checkbox" type="checkbox" id="IncludeNoLanguageForLogos" />
-                            <span>Logos</span>
+                            <span>Allow textless logos</span>
+                        </label>
+                    </div>
+                    <div class="checkboxContainer" style="margin-left: 2.5em">
+                        <label>
+                            <input is="emby-checkbox" type="checkbox" id="PreferNoLanguageForLogos" />
+                            <span>Prefer textless logos over titled</span>
                         </label>
                     </div>
                 </div>
@@ -231,6 +253,13 @@
         (function () {
             var pluginId = "08d643db-becc-42e6-aef9-6c677036ddd5";
 
+            function syncTextlessPrefer(allowSelector, preferSelector) {
+                var allow = document.querySelector(allowSelector);
+                var prefer = document.querySelector(preferSelector);
+                allow.onchange = function () { prefer.disabled = !allow.checked; };
+                prefer.disabled = !allow.checked;
+            }
+
             document.querySelector('#LanguageAwareImagesConfigPage')
                 .addEventListener('pageshow', function () {
                     Dashboard.showLoadingMsg();
@@ -243,6 +272,12 @@
                         document.querySelector('#IncludeNoLanguageForPosters').checked = !!config.IncludeNoLanguageForPosters;
                         document.querySelector('#IncludeNoLanguageForBackdrops').checked = config.IncludeNoLanguageForBackdrops !== false;
                         document.querySelector('#IncludeNoLanguageForLogos').checked = config.IncludeNoLanguageForLogos !== false;
+                        document.querySelector('#PreferNoLanguageForPosters').checked = !!config.PreferNoLanguageForPosters;
+                        document.querySelector('#PreferNoLanguageForBackdrops').checked = !!config.PreferNoLanguageForBackdrops;
+                        document.querySelector('#PreferNoLanguageForLogos').checked = !!config.PreferNoLanguageForLogos;
+                        syncTextlessPrefer('#IncludeNoLanguageForPosters', '#PreferNoLanguageForPosters');
+                        syncTextlessPrefer('#IncludeNoLanguageForBackdrops', '#PreferNoLanguageForBackdrops');
+                        syncTextlessPrefer('#IncludeNoLanguageForLogos', '#PreferNoLanguageForLogos');
                         document.querySelector('#MinimumVoteCount').value = (config.MinimumVoteCount != null ? config.MinimumVoteCount : 0);
                         document.querySelector('#SortByVotes').checked = config.SortByVotes !== false;
                         document.querySelector('#MatchEpisodeImagesByTitle').checked = config.MatchEpisodeImagesByTitle !== false;
@@ -268,6 +303,9 @@
                         config.IncludeNoLanguageForPosters = document.querySelector('#IncludeNoLanguageForPosters').checked;
                         config.IncludeNoLanguageForBackdrops = document.querySelector('#IncludeNoLanguageForBackdrops').checked;
                         config.IncludeNoLanguageForLogos = document.querySelector('#IncludeNoLanguageForLogos').checked;
+                        config.PreferNoLanguageForPosters = document.querySelector('#PreferNoLanguageForPosters').checked;
+                        config.PreferNoLanguageForBackdrops = document.querySelector('#PreferNoLanguageForBackdrops').checked;
+                        config.PreferNoLanguageForLogos = document.querySelector('#PreferNoLanguageForLogos').checked;
                         config.MinimumVoteCount = parseInt(document.querySelector('#MinimumVoteCount').value, 10) || 0;
                         config.SortByVotes = document.querySelector('#SortByVotes').checked;
                         config.MatchEpisodeImagesByTitle = document.querySelector('#MatchEpisodeImagesByTitle').checked;
