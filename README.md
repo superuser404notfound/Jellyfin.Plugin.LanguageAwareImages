@@ -40,6 +40,9 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `IncludeNoLanguageForPosters`    | `false` | Allow textless posters as last resort.                                         |
 | `IncludeNoLanguageForBackdrops`  | `true`  | Backdrops are usually language-agnostic anyway.                                |
 | `IncludeNoLanguageForLogos`      | `true`  | Most studio logos are designed without text.                                   |
+| `PreferNoLanguageForPosters`     | `false` | Rank textless posters above titled art. Needs `IncludeNoLanguageForPosters`.   |
+| `PreferNoLanguageForBackdrops`   | `false` | Rank textless backdrops first (clean, no burned-in title). Needs `IncludeNoLanguageForBackdrops`. |
+| `PreferNoLanguageForLogos`       | `false` | Rank textless logos first. Needs `IncludeNoLanguageForLogos`.                  |
 | `SortByVotes`                    | `true`  | Sort by `vote_count` (TMDB UI behavior). Off = sort by `vote_average`.         |
 | `MinimumVoteCount`               |   `0`   | Drops images with fewer votes. `0` = keep everything (recommended).            |
 | `MatchEpisodeImagesByTitle`      | `true`  | Episode images by title-lookup, not by (S,E) position. Fixes alternative-order shows. |
@@ -50,11 +53,31 @@ Then *Catalog → Metadata → Language-Aware Images → Install*. Restart the s
 | `TmdbApiKey`                     | empty   | Bring your own TMDB key. Empty = uses Jellyfin's bundled key.                  |
 
 The bucket order is preferred, fallback, then original (opt-in, dead-last by
-default, see `OriginalLanguageLast`), then textless (opt-in per type), with a
+default, see `OriginalLanguageLast`), then textless (opt-in per type, or moved
+to the very top instead when `PreferNoLanguageFor*` is on for that type), with a
 `vote_count DESC` tiebreak within each bucket. The exact order is enforced
 through Jellyfin's own downstream image sort, so the picker shows synthetic
 ratings rather than TMDB's and labels every image with the library language
-even when it is really a regional variant or the original language.
+even when it is really a regional variant or the original language (see "Note on
+the image picker" below).
+
+### Note on the image picker
+
+To make its ordering survive Jellyfin's own downstream image sort and filter,
+this plugin tags every image it returns with the library's metadata language and
+encodes the bucket rank as a synthetic community rating. Two visible
+consequences, both by design and not bugs:
+
+- In the *Edit Images* dialog, images are labelled with the library language
+  (and show synthetic ratings) even when the artwork is really English,
+  textless, or another language. Changing the library's preferred download
+  language changes those labels accordingly.
+- The dialog's **"All languages"** toggle has no visible effect, because every
+  image already carries the library-language tag its filter keys on.
+
+This is the deliberate trade-off that guarantees the exact bucket order you
+configured. If you would rather see real per-image language tags and give up the
+ordering guarantee, use Jellyfin's built-in TMDB image provider instead.
 
 ## Why
 

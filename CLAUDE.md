@@ -72,7 +72,9 @@ rank 1: fallback language   (default "en")
 rank 2: original language   (opt-in, IncludeOriginalLanguage; dead-last by
                              default, or moved before fallback when
                              OriginalLanguageLast=false)
-rank 3: textless (null)     (opt-in per image type)
+rank 3: textless (null)     (opt-in per image type; moved to rank -1, above the
+                             preferred bucket, when PreferNoLanguageFor{Posters,
+                             Backdrops,Logos} is set for that type)
 excluded: dropped before mapping (no rank)
 ORDER BY rank, then vote_count DESC tiebreak within a bucket
 ```

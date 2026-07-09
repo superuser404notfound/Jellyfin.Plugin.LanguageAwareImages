@@ -132,6 +132,14 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
         _ => false
     };
 
+    protected static bool IsTextlessPreferredFor(ImageType type) => type switch
+    {
+        ImageType.Primary => Config.PreferNoLanguageForPosters,
+        ImageType.Backdrop => Config.PreferNoLanguageForBackdrops,
+        ImageType.Logo => Config.PreferNoLanguageForLogos,
+        _ => false
+    };
+
     protected static bool AnyTextlessAllowed() =>
         Config.IncludeNoLanguageForPosters
         || Config.IncludeNoLanguageForBackdrops
@@ -242,7 +250,19 @@ public abstract class LanguageAwareImageProviderBase : IHasOrder
                 continue;
             }
 
-            var textlessRank = IsTextlessAllowedFor(type) ? buckets.Count : int.MaxValue;
+            int textlessRank;
+            if (!IsTextlessAllowedFor(type))
+            {
+                textlessRank = int.MaxValue; // excluded for this type
+            }
+            else if (IsTextlessPreferredFor(type))
+            {
+                textlessRank = -1; // above every language bucket
+            }
+            else
+            {
+                textlessRank = buckets.Count; // dead-last (current behaviour)
+            }
             var typeCalls = calls.Select(c => (c.Code, SelectType(c.Images, type)));
             var ranked = LanguageMatching.MergeAndRank(typeCalls, buckets, textlessRank, minVotes);
 
